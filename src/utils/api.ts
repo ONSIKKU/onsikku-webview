@@ -1,0 +1,646 @@
+import { getItem, removeItem, setItem } from "./AsyncStorage";
+export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+
+const DEFAULT_BASE_URL = "https://api.onsikku.xyz";
+
+let baseUrl = DEFAULT_BASE_URL;
+
+export const setBaseUrl = (url: string) => {
+  baseUrl = url || DEFAULT_BASE_URL;
+};
+
+/**
+ * Web-only: allow the app layer (React Router) to decide where to navigate
+ * when the session expires.
+ */
+let onSessionExpired: (() => void) | null = null;
+export const setOnSessionExpired = (fn: (() => void) | null) => {
+  onSessionExpired = fn;
+};
+
+// Lightweight token storage bridge
+let inMemoryToken: string | null = null;
+
+export const setAccessToken = (token: string | null) => {
+  inMemoryToken = token;
+};
+
+const getHeaders = (extra?: Record<string, string>) => {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(extra || {}),
+  };
+  if (inMemoryToken) {
+    headers["Authorization"] = `Bearer ${inMemoryToken}`;
+  }
+  return headers;
+};
+
+export async function apiFetch<T>(
+  path: string,
+  init?: RequestInit & { _retry?: boolean }
+): Promise<T> {
+  const url = baseUrl + path;
+  const headers = getHeaders(
+    init?.headers as Record<string, string> | undefined
+  );
+
+  const res = await fetch(url, {
+    ...init,
+    headers,
+  });
+
+  // Handle 401 (Unauthorized) - Token Refresh Logic
+  if (res.status === 401 && !init?._retry) {
+    try {
+      const storedRefreshToken = await getItem("refreshToken");
+      if (!storedRefreshToken) {
+        throw new Error("No refresh token available");
+      }
+
+      // Call refreshToken logic
+      // Note: We use the exported function below, ensuring it doesn't use apiFetch to avoid recursion
+      const newTokens = await refreshToken(storedRefreshToken);
+
+      // Update memory and storage
+      setAccessToken(newTokens.accessToken);
+      await setItem("accessToken", newTokens.accessToken);
+
+      if (newTokens.refreshToken) {
+        await setItem("refreshToken", newTokens.refreshToken);
+      }
+
+      // Retry the original request with the new token
+      // The new token will be picked up by getHeaders() since we updated inMemoryToken
+      return apiFetch<T>(path, { ...init, _retry: true });
+    } catch (refreshError) {
+      console.error("[API] 토큰 갱신 실패:", refreshError);
+      // Clean up tokens
+      setAccessToken(null);
+      await removeItem("accessToken");
+      await removeItem("refreshToken");
+      
+      // Force navigation to login screen
+      // onSessionExpired?.();
+      
+      // Propagate the error
+      console.warn("Session expired but redirect suppressed for testing.");
+      // throw new Error("Session expired. Please login again.");
+    }
+  }
+
+  const text = await res.text();
+  const json = text ? JSON.parse(text) : null;
+
+  if (!res.ok) {
+    const message =
+      (json && (json.message || json.error)) || `HTTP ${res.status}`;
+    throw new Error(message);
+  }
+
+  return (json && (json.result ?? json)) as T;
+}
+
+// MyPage types (subset tailored for UI)
+export type FamilyRole = "PARENT" | "CHILD" | "GRANDPARENT";
+export type Role = "MEMBER" | "ADMIN";
+
+export type Family = {
+  createdAt: string; // date-time
+  updatedAt: string; // date-time
+  id: string; // uuid
+  familyName: string;
+  invitationCode: string;
+  grandparentType: "PATERNAL" | "MATERNAL";
+  familyInviteEnabled: boolean;
+};
+
+export type MypageResponse = {
+  member: Member;
+  family: Family;
+  familyMembers: Member[];
+};
+
+export type MypagePatch = Partial<{
+  profileImageUrl: string | null;
+  familyRole: FamilyRole;
+  birthDate: string; // yyyy-MM-dd
+  gender: "MALE" | "FEMALE";
+  isAlarmEnabled: boolean;
+  isFamilyInviteEnabled: boolean;
+}>;
+
+export function getMyPage() {
+  return apiFetch<MypageResponse>("/api/members/mypage", { method: "GET" });
+}
+
+export function patchMyPage(payload: MypagePatch) {
+  return apiFetch<MypageResponse>("/api/members/mypage", {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteMember() {
+  // POST /api/members/delete with empty body
+  return apiFetch<void>("/api/members/delete", { method: "POST" });
+}
+
+// Auth types
+export type AuthResponse = {
+  accessToken: string;
+  refreshToken: string;
+  registrationToken?: string;
+  registered: boolean;
+};
+
+export type SignupRequest = {
+  registrationToken: string;
+  grandParentType?: "PATERNAL" | "MATERNAL" | null;
+  familyRole: "PARENT" | "CHILD" | "GRANDPARENT";
+  gender: "MALE" | "FEMALE";
+  birthDate: string; // yyyy-MM-dd
+  profileImageUrl?: string | null;
+  familyName: string;
+  familyInvitationCode?: string;
+  familyMode: "CREATE" | "JOIN";
+};
+
+// 회원가입 (JWT 불필요)
+export async function signup(payload: SignupRequest) {
+  const url = baseUrl + "/api/auth/signup";
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const text = await res.text();
+  const json = text ? JSON.parse(text) : null;
+
+  if (!res.ok) {
+    const message =
+      (json && (json.message || json.error)) || `HTTP ${res.status}`;
+    throw new Error(message);
+  }
+
+  const result = (json && (json.result ?? json)) as AuthResponse;
+  return result;
+}
+
+// 로그아웃
+export async function logout() {
+  const response = await apiFetch<string>("/api/members/logout", {
+    method: "POST",
+  });
+  return response;
+}
+
+// 토큰 재발급
+export type TokenRefreshRequest = {
+  refreshToken: string;
+};
+
+export async function refreshToken(refreshToken: string) {
+  const url = baseUrl + "/api/auth/refresh";
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ refreshToken }),
+  });
+
+  const text = await res.text();
+  const json = text ? JSON.parse(text) : null;
+
+  if (!res.ok) {
+    const message =
+      (json && (json.message || json.error)) || `HTTP ${res.status}`;
+    throw new Error(message);
+  }
+
+  const result = (json && (json.result ?? json)) as AuthResponse;
+  return result;
+}
+
+// Question types
+export type QuestionState =
+  | "PENDING"
+  | "SENT"
+  | "READ"
+  | "ANSWERED"
+  | "EXPIRED"
+  | "FAILED";
+
+// Member 타입 (API 문서의 Member 스키마와 일치)
+export type Member = {
+  createdAt: string; // date-time
+  updatedAt: string; // date-time
+  id: string;
+  role: Role;
+  gender: "MALE" | "FEMALE";
+  birthDate: string; // date
+  familyRole: FamilyRole;
+  profileImageUrl: string;
+  alarmEnabled: boolean;
+};
+
+// 호환성을 위한 QuestionMember 타입 (Member의 부분 집합)
+export type QuestionMember = {
+  id: string;
+  familyRole: FamilyRole;
+  profileImageUrl: string | null;
+  gender: "MALE" | "FEMALE";
+};
+
+export type QuestionAssignment = {
+  id: string;
+  member: Member;
+  dueAt: string; // date-time
+  sentAt: string | null; // date-time
+  readAt: string | null; // date-time
+  answeredAt: string | null; // date-time
+  expiredAt: string | null; // date-time
+  state: QuestionState;
+  reminderCount: number;
+  lastRemindedAt: string | null; // date-time
+};
+
+// QuestionResponse 타입 정의 (OpenAPI 스펙에 맞춤)
+export type QuestionResponse = {
+  questionDetailsList?: QuestionDetails[]; // 월별 조회 시
+  questionDetails?: QuestionDetails; // 단일 질문 조회 시
+  totalQuestions?: number;
+  answeredQuestions?: number;
+  totalReactions?: number;
+  familyMembers?: Member[]; // 가족 구성원 목록
+};
+
+// 오늘의 질문 조회
+export async function getTodayQuestions() {
+  const response = await apiFetch<QuestionResponse>("/api/questions", {
+    method: "GET",
+  });
+  // 새로운 API 스펙에서는 questionDetails.questionAssignments를 사용
+  return response.questionDetails?.questionAssignments || [];
+}
+
+// 오늘의 질문 인스턴스 ID 조회 (답변 상세 페이지용)
+// 새로운 API 스펙에서는 questionDetails.questionInstanceId를 사용
+// 이 함수는 더 이상 사용되지 않음 (호환성을 위해 유지)
+export async function getTodayQuestionInstanceId(): Promise<string | null> {
+  const response = await apiFetch<QuestionResponse>("/api/questions", {
+    method: "GET",
+  });
+  // 새로운 API 스펙에서는 questionDetails.questionInstanceId를 사용
+  const instanceId = response.questionDetails?.questionInstanceId || null;
+  return instanceId;
+}
+
+// Answer types
+export type AnswerType =
+  | "TEXT"
+  | "IMAGE"
+  | "AUDIO"
+  | "VIDEO"
+  | "FILE"
+  | "MIXED";
+
+export type AnswerRequest = {
+  answerId?: string; // 수정/삭제 시 필요
+  questionAssignmentId: string;
+  answerType?: AnswerType; // 생성 시 필수, 수정/삭제 시 선택
+  content?: any; // JsonNode (string or object), 생성/수정 시 필요
+  reactionType?: "LIKE" | "ANGRY" | "SAD" | "FUNNY";
+};
+
+export type Answer = {
+  answerId: string;
+  memberId: string;
+  familyRole: FamilyRole;
+  gender: "MALE" | "FEMALE";
+  createdAt: string; // date-time
+  content: any; // JsonNode
+  likeReactionCount: number;
+  angryReactionCount: number;
+  sadReactionCount: number;
+  funnyReactionCount: number;
+  // 호환성을 위한 필드 (기존 코드에서 사용)
+  id?: string;
+  questionAssignment?: QuestionAssignment;
+  member?: QuestionMember;
+  // 질문 정보 (호환성을 위해 추가)
+  questionContent?: string;
+  questionInstanceId?: string;
+};
+
+// 답변 생성
+export async function createAnswer(payload: AnswerRequest) {
+  // content가 문자열인 경우 TEXT 타입에 맞게 JsonNode 형식으로 변환
+  let content = payload.content;
+  if (payload.answerType === "TEXT" && typeof payload.content === "string") {
+    content = { text: payload.content };
+  }
+
+  const requestPayload = {
+    questionAssignmentId: payload.questionAssignmentId,
+    answerType: payload.answerType || "TEXT",
+    content: content,
+  };
+
+  const response = await apiFetch<{
+    answerId: string;
+    memberId: string;
+    familyRole: FamilyRole;
+    gender: "MALE" | "FEMALE";
+    createdAt: string;
+    content: any;
+    likeReactionCount: number;
+    angryReactionCount: number;
+    sadReactionCount: number;
+    funnyReactionCount: number;
+  }>("/api/questions/answers", {
+    method: "POST",
+    body: JSON.stringify(requestPayload),
+  });
+
+  // 호환성을 위해 Answer 타입으로 변환
+  return {
+    ...response,
+    id: response.answerId,
+  } as Answer;
+}
+
+// 질문 인스턴스 상세 조회 (답변 포함)
+export async function getQuestionInstanceDetails(questionInstanceId: string) {
+  const response = await apiFetch<QuestionResponse>(
+    `/api/questions/${questionInstanceId}`,
+    {
+      method: "GET",
+    }
+  );
+  return response;
+}
+
+// 특정 질문의 답변 조회 (questionInstanceId를 통해)
+export async function getAnswers(questionInstanceId: string) {
+  const questionData = await getQuestionInstanceDetails(questionInstanceId);
+
+  // QuestionResponse의 questionDetails.answers에서 답변 추출
+  const answers = questionData.questionDetails?.answers || [];
+
+  // 호환성을 위해 Answer[] 타입으로 변환
+  const convertedAnswers: Answer[] = answers.map((ans: any) => ({
+    ...ans,
+    id: ans.answerId,
+  }));
+
+  return convertedAnswers;
+}
+
+// 답변 수정
+export async function updateAnswer(payload: AnswerRequest) {
+  const requestPayload = {
+    answerId: payload.answerId,
+    questionAssignmentId: payload.questionAssignmentId,
+    answerType: payload.answerType,
+    content: { text: payload.content },
+  };
+
+  const response = await apiFetch<{
+    answerId: string;
+    memberId: string;
+    familyRole: FamilyRole;
+    gender: "MALE" | "FEMALE";
+    createdAt: string;
+    content: any;
+    likeReactionCount: number;
+    angryReactionCount: number;
+    sadReactionCount: number;
+    funnyReactionCount: number;
+  }>("/api/questions/answers", {
+    method: "PATCH",
+    body: JSON.stringify(requestPayload),
+  });
+
+  // 호환성을 위해 Answer 타입으로 변환
+  return {
+    ...response,
+    id: response.answerId,
+  } as Answer;
+}
+
+// 답변 삭제
+export async function deleteAnswer(payload: AnswerRequest) {
+  const requestPayload = {
+    answerId: payload.answerId,
+    questionAssignmentId: payload.questionAssignmentId,
+  };
+
+  const response = await apiFetch<string>("/api/questions/answers", {
+    method: "DELETE",
+    body: JSON.stringify(requestPayload),
+  });
+  return response;
+}
+
+// QuestionDetails 타입 (OpenAPI 스펙에 맞춤)
+export type QuestionDetails = {
+  questionInstanceId: string;
+  questionContent: string;
+  questionAssignments?: QuestionAssignment[];
+  answers?: Answer[];
+  comments?: any[];
+  // 호환성을 위한 필드
+  questionAssignmentId?: string;
+  memberId?: string;
+  familyRole?: FamilyRole;
+  profileImageUrl?: string | null;
+  gender?: "MALE" | "FEMALE";
+  state?: QuestionState;
+  dueAt?: string;
+  sentAt?: string | null;
+  answeredAt?: string | null;
+  expiredAt?: string | null;
+};
+
+// 월별 질문 조회
+export async function getQuestionsByMonth(year: number, month: number) {
+  const params = new URLSearchParams({
+    year: year.toString(),
+    month: month.toString(),
+  });
+  const response = await apiFetch<QuestionResponse>(
+    `/api/questions/monthly?${params.toString()}`,
+    {
+      method: "GET",
+    }
+  );
+
+  // 호환성을 위해 questionDetailsList를 questionDetails로 변환
+  const questionDetailsList = response.questionDetailsList || [];
+  const convertedDetails: QuestionDetails[] = questionDetailsList.map((qd) => ({
+    ...qd,
+    questionAssignmentId: qd.questionAssignments?.[0]?.id || "",
+    memberId: qd.questionAssignments?.[0]?.member?.id || "",
+    familyRole: qd.questionAssignments?.[0]?.member?.familyRole || "PARENT",
+    profileImageUrl:
+      qd.questionAssignments?.[0]?.member?.profileImageUrl || null,
+    gender: qd.questionAssignments?.[0]?.member?.gender || "MALE",
+    state: qd.questionAssignments?.[0]?.state || "PENDING",
+    dueAt: qd.questionAssignments?.[0]?.dueAt || "",
+    sentAt: qd.questionAssignments?.[0]?.sentAt || null,
+    answeredAt: qd.questionAssignments?.[0]?.answeredAt || null,
+    expiredAt: qd.questionAssignments?.[0]?.expiredAt || null,
+  }));
+
+  return {
+    ...response,
+    questionDetails: convertedDetails,
+  } as QuestionResponse & { questionDetails: QuestionDetails[] };
+}
+
+// 최근 답변 조회 (최근 N개월의 질문에서 답변된 것들만)
+export async function getRecentAnswers(months: number = 1, limit: number = 10) {
+  const now = new Date();
+  const allAnswers: Answer[] = [];
+
+  // 최근 N개월의 질문들을 조회
+  for (let i = 0; i < months; i++) {
+    const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const year = date.getFullYear();
+    const month = date.getMonth() + 1;
+
+    try {
+      const questionData = await getQuestionsByMonth(year, month);
+      const questionDetails = (questionData as any).questionDetails || [];
+      const answeredQuestions = questionDetails.filter(
+        (q: QuestionDetails) => q.state === "ANSWERED" || q.answeredAt
+      );
+
+      // 각 질문 인스턴스에 대한 답변 조회
+      for (const question of answeredQuestions) {
+        try {
+          if (question.questionInstanceId) {
+            const questionDetailsData = await getQuestionInstanceDetails(
+              question.questionInstanceId
+            );
+            const answers = questionDetailsData.questionDetails?.answers || [];
+
+            // 호환성을 위해 Answer[] 타입으로 변환
+            const convertedAnswers: Answer[] = answers.map((ans: any) => ({
+              ...ans,
+              id: ans.answerId,
+              questionAssignment: question.questionAssignments?.[0],
+              member: {
+                id: ans.memberId,
+                familyRole: ans.familyRole,
+                profileImageUrl: null,
+                gender: ans.gender,
+              },
+              questionContent: question.questionContent,
+              questionInstanceId: question.questionInstanceId,
+            }));
+
+            allAnswers.push(...convertedAnswers);
+          }
+        } catch (e) {
+          // ignore error
+        }
+      }
+    } catch (e) {
+      // ignore error
+    }
+  }
+
+  // 시간순 정렬 (최신순)
+  allAnswers.sort((a, b) => {
+    const dateA = new Date(a.createdAt).getTime();
+    const dateB = new Date(b.createdAt).getTime();
+    return dateB - dateA;
+  });
+
+  // 최대 limit개만 반환
+  const result = allAnswers.slice(0, limit);
+  return result;
+}
+
+// 답변 반응 추가
+export async function addReaction(payload: {
+  answerId: string;
+  reactionType: "LIKE" | "ANGRY" | "SAD" | "FUNNY";
+}) {
+  const response = await apiFetch<{
+    answerId: string;
+    memberId: string;
+    familyRole: FamilyRole;
+    gender: "MALE" | "FEMALE";
+    createdAt: string;
+    content: any;
+    likeReactionCount: number;
+    angryReactionCount: number;
+    sadReactionCount: number;
+    funnyReactionCount: number;
+  }>("/api/questions/answers/reaction", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+
+  // 호환성을 위해 Answer 타입으로 변환
+  return {
+    ...response,
+    id: response.answerId,
+  } as Answer;
+}
+
+// Comment types
+export type CommentRequest = {
+  questionInstanceId: string;
+  commentId?: string; // 수정 시 필요
+  parentCommentId?: string; // 대댓글 작성 시 필요
+  content: string; // 필수
+};
+
+export type Comment = {
+  id: string;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+  parent?: Comment;
+  member?: QuestionMember;
+  familyRole?: FamilyRole;
+  gender?: "MALE" | "FEMALE";
+};
+
+export type CommentResponse = {
+  comment: Comment;
+};
+
+// 댓글 생성
+export async function createComment(payload: CommentRequest) {
+  const response = await apiFetch<CommentResponse>("/api/comments", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  return response;
+}
+
+// 댓글 수정
+export async function updateComment(payload: CommentRequest) {
+  const response = await apiFetch<CommentResponse>("/api/comments", {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+  return response;
+}
+
+// 댓글 삭제
+export async function deleteComment(commentId: string) {
+  const response = await apiFetch<void>(`/api/comments/${commentId}`, {
+    method: "DELETE",
+  });
+  return response;
+}

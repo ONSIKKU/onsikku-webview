@@ -1,0 +1,338 @@
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { getItem } from '@/utils/AsyncStorage';
+import { getMyPage, patchMyPage, setAccessToken } from '@/utils/api';
+import { familyRoleToKo, genderToKo, getRoleIconAndText } from '@/utils/labels';
+import { IoArrowBack, IoCalendarOutline } from 'react-icons/io5';
+
+export default function MyPageEdit() {
+  const navigate = useNavigate();
+
+  const [loading, setLoading] = useState<boolean>(true);
+  const [saving, setSaving] = useState<boolean>(false);
+  const [error, setError] = useState<string>('');
+
+  const [gender, setGender] = useState<'MALE' | 'FEMALE' | ''>('');
+  const [birthDate, setBirthDate] = useState<string>('');
+  const [familyRole, setFamilyRole] = useState<
+    'PARENT' | 'CHILD' | 'GRANDPARENT' | ''
+  >('');
+
+  // Date Picker State
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [tempYear, setTempYear] = useState(2000);
+  const [tempMonth, setTempMonth] = useState(1);
+  const [tempDay, setTempDay] = useState(1);
+
+  useEffect(() => {
+    const run = async () => {
+      try {
+        setLoading(true);
+        const token = await getItem('accessToken');
+        if (token) setAccessToken(token);
+
+        const res = await getMyPage();
+        setGender((res.member.gender as any) || '');
+        setBirthDate(res.member.birthDate || '');
+        setFamilyRole((res.member.familyRole as any) || '');
+      } catch (e: any) {
+        setError(e?.message || '정보를 불러오지 못했습니다');
+      } finally {
+        setLoading(false);
+      }
+    };
+    run();
+  }, []);
+
+  const onSave = async () => {
+    try {
+      setSaving(true);
+
+      // RN 원본 검증: birthDate 필수
+      if (!birthDate) {
+        alert('생년월일을 선택해 주세요');
+        setSaving(false);
+        return;
+      }
+
+      await patchMyPage({
+        gender: (gender || undefined) as any,
+        birthDate: birthDate || undefined,
+        familyRole: (familyRole as any) || undefined,
+      });
+
+      alert('프로필이 수정되었습니다');
+      navigate(-1);
+    } catch (e: any) {
+      alert(e?.message || '수정에 실패했습니다');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const openDatePicker = () => {
+    let y = 2000,
+      m = 1,
+      d = 1;
+    if (birthDate) {
+      const parts = birthDate.split('-');
+      if (parts.length === 3) {
+        y = parseInt(parts[0], 10);
+        m = parseInt(parts[1], 10);
+        d = parseInt(parts[2], 10);
+      }
+    }
+    setTempYear(y);
+    setTempMonth(m);
+    setTempDay(d);
+    setShowDatePicker(true);
+  };
+
+  const confirmDate = () => {
+    const y = tempYear;
+    const m = String(tempMonth).padStart(2, '0');
+    const d = String(tempDay).padStart(2, '0');
+    setBirthDate(`${y}-${m}-${d}`);
+    setShowDatePicker(false);
+  };
+
+  const currentYear = new Date().getFullYear();
+  const years = useMemo(
+    () => Array.from({ length: 100 }, (_, i) => currentYear - i),
+    [currentYear],
+  );
+  const months = useMemo(() => Array.from({ length: 12 }, (_, i) => i + 1), []);
+  const daysInMonth = new Date(tempYear, tempMonth, 0).getDate();
+  const days = useMemo(
+    () => Array.from({ length: daysInMonth }, (_, i) => i + 1),
+    [daysInMonth],
+  );
+
+  // tempDay가 월 최대 일수보다 크면 보정 (웹 select에서만 생길 수 있음)
+  useEffect(() => {
+    if (tempDay > daysInMonth) setTempDay(daysInMonth);
+  }, [daysInMonth, tempDay]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-orange-50">
+        <p className="font-sans text-gray-600">불러오는 중...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-orange-50">
+      <div className="mx-auto w-full max-w-md">
+        {/* Header */}
+        <div className="px-4 py-2 flex flex-row items-center mb-2">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="w-10 h-10 flex items-center justify-center rounded-full bg-white shadow-sm mr-4 active:opacity-70"
+          >
+            <IoArrowBack size={24} color="#374151" />
+          </button>
+
+          <h1 className="font-sans text-xl font-bold text-gray-900">
+            내 정보 수정
+          </h1>
+        </div>
+
+        <div className="px-6 pb-10 space-y-6">
+          {/* Profile Avatar */}
+          <div className="self-center items-center flex flex-col gap-4 py-4">
+            <div className="text-[100px] leading-none">
+              {
+                getRoleIconAndText(familyRole || undefined, gender || undefined)
+                  .icon
+              }
+            </div>
+            <p className="font-sans text-sm text-gray-500">
+              프로필 아이콘은 역할에 따라 자동으로 변경돼요
+            </p>
+          </div>
+
+          {/* Gender Section */}
+          <div className="bg-white p-6 rounded-3xl shadow-sm flex flex-col gap-4">
+            <p className="font-sans text-base font-bold text-gray-800">성별</p>
+            <div className="flex flex-row gap-3">
+              {(['MALE', 'FEMALE'] as const).map((g) => {
+                const isSelected = gender === g;
+                return (
+                  <button
+                    key={g}
+                    type="button"
+                    onClick={() => setGender(g)}
+                    className={
+                      'flex-1 py-3 rounded-xl flex items-center justify-center border-2 ' +
+                      (isSelected
+                        ? 'bg-orange-50 border-orange-500'
+                        : 'bg-gray-50 border-transparent')
+                    }
+                  >
+                    <span
+                      className={
+                        'font-sans text-base ' +
+                        (isSelected
+                          ? 'text-orange-600 font-bold'
+                          : 'text-gray-500 font-medium')
+                      }
+                    >
+                      {genderToKo(g)}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* BirthDate Section */}
+          <div className="bg-white p-6 rounded-3xl shadow-sm flex flex-col gap-4">
+            <p className="font-sans text-base font-bold text-gray-800">
+              생년월일
+            </p>
+            <button
+              type="button"
+              onClick={openDatePicker}
+              className="bg-gray-50 rounded-xl px-4 py-3 flex flex-row justify-between items-center active:opacity-80"
+            >
+              <span
+                className={
+                  'font-sans text-base ' +
+                  (birthDate ? 'text-gray-900' : 'text-gray-400')
+                }
+              >
+                {birthDate || 'YYYY-MM-DD'}
+              </span>
+              <IoCalendarOutline size={20} color="#9CA3AF" />
+            </button>
+          </div>
+
+          {/* Role Section */}
+          <div className="bg-white p-6 rounded-3xl shadow-sm flex flex-col gap-4">
+            <p className="font-sans text-base font-bold text-gray-800">
+              가족 내 역할
+            </p>
+            <div className="flex flex-row gap-3 flex-wrap">
+              {(['PARENT', 'CHILD', 'GRANDPARENT'] as const).map((r) => {
+                const isSelected = familyRole === r;
+                return (
+                  <button
+                    key={r}
+                    type="button"
+                    onClick={() => setFamilyRole(r)}
+                    className={
+                      'px-5 py-3 rounded-xl flex items-center justify-center border-2 ' +
+                      (isSelected
+                        ? 'bg-orange-50 border-orange-500'
+                        : 'bg-gray-50 border-transparent')
+                    }
+                  >
+                    <span
+                      className={
+                        'font-sans text-base ' +
+                        (isSelected
+                          ? 'text-orange-600 font-bold'
+                          : 'text-gray-500 font-medium')
+                      }
+                    >
+                      {familyRoleToKo(r)}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {error ? (
+            <p className="font-sans text-red-500 text-center">{error}</p>
+          ) : null}
+
+          {/* Save Button */}
+          <button
+            type="button"
+            onClick={onSave}
+            disabled={saving}
+            className="mt-4 w-full bg-onsikku-dark-orange rounded-full flex items-center justify-center py-4 shadow-sm disabled:opacity-60"
+          >
+            <span className="font-sans text-white font-bold text-lg">
+              {saving ? '저장 중...' : '저장하기'}
+            </span>
+          </button>
+        </div>
+      </div>
+
+      {/* Date Picker Modal */}
+      {showDatePicker && (
+        <div className="fixed inset-0 z-50 flex items-end bg-black/50">
+          <div className="w-full bg-white rounded-t-3xl p-6">
+            <div className="flex flex-row justify-between items-center mb-4 border-b border-gray-100 pb-4">
+              <button type="button" onClick={() => setShowDatePicker(false)}>
+                <span className="font-sans text-gray-500 text-base">취소</span>
+              </button>
+              <span className="font-sans font-bold text-lg text-gray-800">
+                생년월일 선택
+              </span>
+              <button type="button" onClick={confirmDate}>
+                <span className="font-sans text-orange-500 font-bold text-base">
+                  확인
+                </span>
+              </button>
+            </div>
+
+            <div className="flex flex-row justify-center items-center">
+              {/* Year */}
+              <div className="flex-1">
+                <select
+                  value={tempYear}
+                  onChange={(e) => setTempYear(parseInt(e.target.value, 10))}
+                  size={5}
+                  className="w-full h-[150px] text-[16px] outline-none"
+                >
+                  {years.map((y) => (
+                    <option key={y} value={y}>
+                      {y}년
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Month */}
+              <div className="flex-1">
+                <select
+                  value={tempMonth}
+                  onChange={(e) => setTempMonth(parseInt(e.target.value, 10))}
+                  size={5}
+                  className="w-full h-[150px] text-[16px] outline-none"
+                >
+                  {months.map((m) => (
+                    <option key={m} value={m}>
+                      {m}월
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Day */}
+              <div className="flex-1">
+                <select
+                  value={tempDay}
+                  onChange={(e) => setTempDay(parseInt(e.target.value, 10))}
+                  size={5}
+                  className="w-full h-[150px] text-[16px] outline-none"
+                >
+                  {days.map((d) => (
+                    <option key={d} value={d}>
+                      {d}일
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
