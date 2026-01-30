@@ -4,7 +4,7 @@ import QuestionList from '@/components/history/QuestionList';
 import { getQuestionsByMonth, setAccessToken } from '@/utils/api';
 import type { QuestionDetails } from '@/utils/api';
 import { getItem } from '@/utils/AsyncStorage';
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { IoArrowDownOutline, IoArrowUpOutline } from 'react-icons/io5';
 
@@ -17,7 +17,6 @@ export default function HistoryPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [refreshing, setRefreshing] = useState(false); // RN 유지(웹 UI에는 노출 X)
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [tempYear, setTempYear] = useState(selectedYear);
   const [tempMonth, setTempMonth] = useState(selectedMonth);
@@ -70,18 +69,6 @@ export default function HistoryPage() {
   useEffect(() => {
     fetchQuestions();
   }, [fetchQuestions]);
-
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    try {
-      await fetchQuestions();
-    } catch (e) {
-      console.error('새로고침 실패', e);
-    } finally {
-      setRefreshing(false);
-    }
-  }, [fetchQuestions]);
-  void onRefresh; // RN pull-to-refresh 자리(웹 UI 변경 없이 유지)
 
   const handlePrevMonth = () => {
     if (selectedMonth === 1) {

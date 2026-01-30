@@ -12,13 +12,12 @@ import {
   getMyPage,
   getRecentAnswers,
   setAccessToken,
+  getTodayQuestions,
 } from '@/utils/api';
 import { getItem } from '@/utils/AsyncStorage';
 import { getRoleIconAndText } from '@/utils/labels';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-
-const USE_MOCK = true;
 
 export default function HomePage() {
   const navigate = useNavigate();
@@ -44,69 +43,11 @@ export default function HomePage() {
       setLoading(true);
       setError('');
 
-      if (USE_MOCK) {
-        // Mock Data for Today's Questions
-        const mockMembers: Member[] = [
-          {
-            id: 'user-1',
-            role: 'MEMBER',
-            gender: 'MALE',
-            birthDate: '1990-01-01',
-            familyRole: 'CHILD',
-            profileImageUrl: '',
-            alarmEnabled: true,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-          {
-            id: 'user-2',
-            role: 'MEMBER',
-            gender: 'MALE',
-            birthDate: '1960-01-01',
-            familyRole: 'PARENT', // Dad
-            profileImageUrl: '',
-            alarmEnabled: true,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-          {
-            id: 'user-3',
-            role: 'MEMBER',
-            gender: 'FEMALE',
-            birthDate: '1965-01-01',
-            familyRole: 'PARENT', // Mom
-            profileImageUrl: '',
-            alarmEnabled: true,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-        ];
-
-        const mockAssignments: QuestionAssignment[] = [
-          {
-            id: 'qa-2',
-            member: mockMembers[1], // Dad (user-2)
-            state: 'ANSWERED',
-            dueAt: new Date().toISOString(),
-            sentAt: new Date().toISOString(),
-            readAt: new Date().toISOString(),
-            answeredAt: new Date().toISOString(),
-            expiredAt: null,
-            reminderCount: 0,
-            lastRemindedAt: null,
-          },
-        ];
-
-        setQuestions(mockAssignments);
-        setFamilyMembers(mockMembers);
-        setQuestionContent('가족들과 함께 가장 가고 싶은 여행지는 어디인가요?');
-        setQuestionInstanceId('qi-mock-1');
-        return;
-      }
-
       const token = await getItem('accessToken');
       if (!token) {
-        setError('로그인이 필요합니다');
+        // 토큰이 없으면 로그인 페이지로 이동하거나 에러 처리
+        // 여기서는 에러 메시지만 설정
+        // setError('로그인이 필요합니다');
         setQuestions([]);
         setFamilyMembers([]);
         setQuestionContent('');
@@ -115,24 +56,22 @@ export default function HomePage() {
       }
 
       setAccessToken(token);
-      const response = await apiFetch<QuestionResponse>('/api/questions', {
-        method: 'GET',
-      });
+      
+      const { questionDetails, familyMembers } = await getTodayQuestions();
 
-      const questionAssignments =
-        response.questionDetails?.questionAssignments || [];
+      // questionDetails can be undefined/null if no question
+      const assignments = questionDetails?.questionAssignments || [];
 
-      setQuestions(questionAssignments);
-      setFamilyMembers(response.familyMembers || []);
+      setQuestions(assignments);
+      setFamilyMembers(familyMembers);
 
-      if (response.questionDetails) {
-        setQuestionContent(response.questionDetails.questionContent || '');
-        setQuestionInstanceId(
-          response.questionDetails.questionInstanceId || null,
-        );
+      if (questionDetails) {
+        setQuestionContent(questionDetails.questionContent || '');
+        setQuestionInstanceId(questionDetails.questionInstanceId || null);
       }
     } catch (e: any) {
       console.error('[오늘의 질문 조회 에러]', e);
+      // 404 등 질문이 없는 경우에 대한 처리도 필요할 수 있음
       setError(e?.message || '질문을 불러오지 못했습니다');
     } finally {
       setLoading(false);
@@ -143,57 +82,10 @@ export default function HomePage() {
     try {
       setLoadingAnswers(true);
 
-      if (USE_MOCK) {
-        const mockAnswers: Answer[] = [
-          {
-            answerId: 'ans-1',
-            memberId: 'user-2',
-            familyRole: 'PARENT',
-            gender: 'MALE',
-            createdAt: new Date(Date.now() - 86400000).toISOString(), // Yesterday
-            content: { text: '나는 하와이가 가고 싶구나.' },
-            likeReactionCount: 1,
-            angryReactionCount: 0,
-            sadReactionCount: 0,
-            funnyReactionCount: 0,
-            questionContent: '가족들과 함께 가장 가고 싶은 여행지는 어디인가요?',
-            questionInstanceId: 'qi-mock-1',
-            member: {
-              id: 'user-2',
-              familyRole: 'PARENT',
-              gender: 'MALE',
-              profileImageUrl: null,
-            },
-          },
-          {
-            answerId: 'ans-2',
-            memberId: 'user-3',
-            familyRole: 'PARENT',
-            gender: 'FEMALE',
-            createdAt: new Date(Date.now() - 172800000).toISOString(), // 2 days ago
-            content: { text: '유럽 배낭여행이 꿈이었단다.' },
-            likeReactionCount: 2,
-            angryReactionCount: 0,
-            sadReactionCount: 0,
-            funnyReactionCount: 1,
-            questionContent: '어릴 적 꿈은 무엇이었나요?',
-            questionInstanceId: 'qi-mock-2',
-            member: {
-              id: 'user-3',
-              familyRole: 'PARENT',
-              gender: 'FEMALE',
-              profileImageUrl: null,
-            },
-          },
-        ];
-        setRecentAnswers(mockAnswers);
-        return;
-      }
-
       const token = await getItem('accessToken');
       if (token) {
         setAccessToken(token);
-        const answers = await getRecentAnswers(1, 10);
+        const answers = await getRecentAnswers(3, 10); // 최근 3개월, 10개
         setRecentAnswers(answers);
       }
     } catch (e) {
@@ -206,13 +98,6 @@ export default function HomePage() {
 
   const fetchCurrentUser = useCallback(async () => {
     try {
-      if (USE_MOCK) {
-        setCurrentUserId('user-1');
-        setCurrentUserRole('CHILD');
-        setCurrentUserGender('MALE');
-        return;
-      }
-
       const token = await getItem('accessToken');
       if (!token) return;
       setAccessToken(token);
@@ -313,6 +198,8 @@ export default function HomePage() {
     );
   }
 
+  // 에러가 있어도 질문이 없으면 빈 화면 표시 (혹은 에러 메시지)
+  // 여기서는 질문 목록이 비어있고 에러가 있으면 에러 표시
   if (error && questions.length === 0) {
     return (
       <div className="-mx-4 -mt-4 min-h-screen bg-orange-50 flex items-center justify-center px-4">

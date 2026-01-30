@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import TodayQuestion from '@/components/TodayQuestion';
 import TodayRespondent from '@/components/TodayRespondent';
 import { getRoleIconAndText } from '@/utils/labels';
-import type { Member, QuestionAssignment } from '@/utils/api';
+import type { Member, QuestionAssignment, QuestionResponse } from '@/utils/api';
+import { apiFetch, getMyPage, setAccessToken } from '@/utils/api';
+import { getItem } from '@/utils/AsyncStorage';
 
 export default function NotAssignedPage() {
   const [loading, setLoading] = useState(true);
@@ -17,86 +19,59 @@ export default function NotAssignedPage() {
     null,
   );
 
-  // ✅ RN not-assigned.tsx 처럼 Mock 데이터 로드 (0.5초 로딩 시뮬)
-  useEffect(() => {
-    const loadMockData = async () => {
+  const fetchData = useCallback(async () => {
+    try {
       setLoading(true);
-      try {
-        await new Promise((resolve) => setTimeout(resolve, 500));
-
-        const mockMeId = 'user-me';
-        setCurrentUserId(mockMeId);
-        setCurrentUserRole('CHILD');
-        setCurrentUserGender('MALE');
-
-        const mockMembers: Member[] = [
-          {
-            id: mockMeId,
-            familyRole: 'CHILD',
-            gender: 'MALE',
-            profileImageUrl: '',
-            role: 'MEMBER',
-            birthDate: '',
-            createdAt: '',
-            updatedAt: '',
-            alarmEnabled: true,
-          } as any,
-          {
-            id: 'user-mom',
-            familyRole: 'PARENT',
-            gender: 'FEMALE',
-            profileImageUrl: '',
-            role: 'MEMBER',
-            birthDate: '',
-            createdAt: '',
-            updatedAt: '',
-            alarmEnabled: true,
-          } as any,
-          {
-            id: 'user-dad',
-            familyRole: 'PARENT',
-            gender: 'MALE',
-            profileImageUrl: '',
-            role: 'MEMBER',
-            birthDate: '',
-            createdAt: '',
-            updatedAt: '',
-            alarmEnabled: true,
-          } as any,
-        ];
-        setFamilyMembers(mockMembers);
-
-        const mockAssignments: QuestionAssignment[] = [
-          {
-            id: 'assignment-1',
-            member: mockMembers[1], // Mom
-            state: 'SENT',
-            dueAt: '',
-            sentAt: '',
-            readAt: null,
-            answeredAt: null,
-            expiredAt: null,
-            reminderCount: 0,
-            lastRemindedAt: null,
-          } as any,
-        ];
-        setQuestions(mockAssignments);
-
-        setQuestionContent('가족들과 함께 가고 싶은 여행지가 있나요?');
-      } finally {
+      const token = await getItem('accessToken');
+      if (!token) {
         setLoading(false);
+        return;
       }
-    };
+      setAccessToken(token);
 
-    loadMockData();
+      // Fetch User Info
+      try {
+        const myPageData = await getMyPage();
+        if (myPageData.member) {
+          setCurrentUserId(myPageData.member.id);
+          setCurrentUserRole(myPageData.member.familyRole);
+          setCurrentUserGender(myPageData.member.gender);
+        }
+      } catch (e) {
+        console.error('Failed to fetch user info', e);
+      }
+
+      // Fetch Questions
+      try {
+        const response = await apiFetch<QuestionResponse>('/api/questions', {
+          method: 'GET',
+        });
+        const questionAssignments =
+          response.questionDetails?.questionAssignments || [];
+        setQuestions(questionAssignments);
+        setFamilyMembers(response.familyMembers || []);
+
+        if (response.questionDetails) {
+          setQuestionContent(response.questionDetails.questionContent || '');
+        }
+      } catch (e) {
+        console.error('Failed to fetch questions', e);
+      }
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const currentUserQuestion = questions.find(
     (q) => q.member?.id === currentUserId,
   );
   const currentQuestion = currentUserQuestion || questions[0];
 
-  const hasUserAssignment = !!currentUserQuestion; // ✅ RN에서는 false가 되게 설계(내가 배정 X)
+  const hasUserAssignment = false; // Intentionally false for this page
   const hasAnsweredToday = false;
   const isQuestionEmpty = !questionContent;
   const displayQuestionContent = questionContent;
@@ -150,7 +125,7 @@ export default function NotAssignedPage() {
           <div>
             <div className="flex flex-row justify-between items-center mb-3 px-1">
               <h2 className="font-sans font-bold text-xl text-gray-800">
-                지난 추억들 (Mock)
+                지난 추억들
               </h2>
             </div>
 

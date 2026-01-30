@@ -9,6 +9,7 @@ export type SignupState = {
   uri: string | null;
   gender: "MALE" | "FEMALE" | null;
   birthDate: string;
+  nickname: string;
   familyName: string;
   familyInvitationCode: string;
   familyMode: "CREATE" | "JOIN";
@@ -18,6 +19,7 @@ export type SignupState = {
   setUri: (i: string | null) => void;
   setGender: (g: "MALE" | "FEMALE" | null) => void;
   setBirthDate: (b: string) => void;
+  setNickname: (n: string) => void;
   setFamilyName: (n: string) => void;
   setFamilyInvitationCode: (c: string) => void;
   setFamilyMode: (m: "CREATE" | "JOIN") => void;
@@ -30,6 +32,7 @@ export const useSignupStore = create<SignupState>((set) => ({
   uri: null,
   gender: null,
   birthDate: "",
+  nickname: "",
   familyName: "",
   familyInvitationCode: "",
   familyMode: "JOIN",
@@ -40,6 +43,7 @@ export const useSignupStore = create<SignupState>((set) => ({
   setUri: (i) => set({ uri: i }),
   setGender: (g) => set({ gender: g }),
   setBirthDate: (b) => set({ birthDate: b }),
+  setNickname: (n) => set({ nickname: n }),
   setFamilyName: (n) => set({ familyName: n }),
   setFamilyInvitationCode: (c) => set({ familyInvitationCode: c }),
   setFamilyMode: (m) => set({ familyMode: m }),
@@ -52,6 +56,7 @@ export const useSignupStore = create<SignupState>((set) => ({
       uri: null,
       gender: null,
       birthDate: "",
+      nickname: "",
       familyName: "",
       familyInvitationCode: "",
       familyMode: "JOIN",

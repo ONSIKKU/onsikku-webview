@@ -1,6 +1,5 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import BackButton from "@/components/BackButton";
 import Button from "@/components/Button";
 import ImageUploadBox from "@/components/ImageUploadBox";
 import SignUpHeader from "@/components/SignUpHeader";
@@ -17,23 +16,26 @@ export default function ImagePage() {
   }, [role]);
 
   return (
-    <div className="space-y-6">
-      <BackButton />
-      <SignUpHeader title={title} description="선택은 선택사항이에요. 나중에 변경할 수도 있어요." />
+    <div className="flex min-h-screen flex-col bg-white px-5 pb-6">
+      <SignUpHeader
+        title={title}
+        description="사진을 등록하면 가족들이 나를 더 쉽게 알아볼 수 있어요."
+        currentStep={3}
+        totalSteps={4}
+        showBackButton
+      />
 
-      <ImageUploadBox uri={uri} onPick={(dataUrl) => setUri(dataUrl)} />
+      <div className="mt-8 flex flex-1 flex-col items-center justify-center space-y-8">
+        <ImageUploadBox uri={uri} onPick={(dataUrl) => setUri(dataUrl)} />
+        <p className="text-center text-sm text-gray-500">
+          터치하여 사진을 변경할 수 있어요
+        </p>
+      </div>
 
-      <div className="space-y-2">
-        <Button className="w-full" onClick={() => navigate("/signup/family")}>
-          다음
+      <div className="mt-6 space-y-3">
+        <Button className="w-full py-4 text-lg" onClick={() => navigate("/signup/family")}>
+          {uri ? "다음으로" : "건너뛰기"}
         </Button>
-        <button
-          type="button"
-          className="w-full text-sm text-gray-600 hover:opacity-80"
-          onClick={() => navigate("/signup/family")}
-        >
-          건너뛰기
-        </button>
       </div>
     </div>
   );

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getItem } from '@/utils/AsyncStorage';
 import { getMyPage, patchMyPage, setAccessToken } from '@/utils/api';
-import { familyRoleToKo, genderToKo, getRoleIconAndText } from '@/utils/labels';
+import { familyRoleToKo, genderToKo, getApiFamilyRole } from '@/utils/labels';
 import { IoArrowBack, IoCalendarOutline } from 'react-icons/io5';
 
 export default function MyPageEdit() {
@@ -14,9 +14,13 @@ export default function MyPageEdit() {
 
   const [gender, setGender] = useState<'MALE' | 'FEMALE' | ''>('');
   const [birthDate, setBirthDate] = useState<string>('');
-  const [familyRole, setFamilyRole] = useState<
+  // Local state tracks Category (PARENT/CHILD/GRANDPARENT)
+  const [roleCategory, setRoleCategory] = useState<
     'PARENT' | 'CHILD' | 'GRANDPARENT' | ''
   >('');
+  const [nickname, setNickname] = useState<string>('');
+  const [isAlarmEnabled, setIsAlarmEnabled] = useState<boolean>(true);
+  const [isFamilyInviteEnabled, setIsFamilyInviteEnabled] = useState<boolean>(true);
 
   // Date Picker State
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -34,7 +38,16 @@ export default function MyPageEdit() {
         const res = await getMyPage();
         setGender((res.member.gender as any) || '');
         setBirthDate(res.member.birthDate || '');
-        setFamilyRole((res.member.familyRole as any) || '');
+        
+        // Map API specific role back to Category for UI
+        const role = res.member.familyRole;
+        if (role === 'FATHER' || role === 'MOTHER') setRoleCategory('PARENT');
+        else if (role === 'SON' || role === 'DAUGHTER') setRoleCategory('CHILD');
+        else if (role === 'GRANDFATHER' || role === 'GRANDMOTHER') setRoleCategory('GRANDPARENT');
+        
+        setNickname(res.member.nickname || '');
+        setIsAlarmEnabled(res.member.alarmEnabled ?? true);
+        setIsFamilyInviteEnabled(res.family.familyInviteEnabled ?? true);
       } catch (e: any) {
         setError(e?.message || '정보를 불러오지 못했습니다');
       } finally {
@@ -48,17 +61,27 @@ export default function MyPageEdit() {
     try {
       setSaving(true);
 
-      // RN 원본 검증: birthDate 필수
       if (!birthDate) {
         alert('생년월일을 선택해 주세요');
         setSaving(false);
         return;
       }
 
+      if (!gender || !roleCategory) {
+         alert('성별과 역할을 선택해 주세요');
+         setSaving(false);
+         return;
+      }
+
+      const apiRole = getApiFamilyRole(roleCategory, gender);
+
       await patchMyPage({
-        gender: (gender || undefined) as any,
-        birthDate: birthDate || undefined,
-        familyRole: (familyRole as any) || undefined,
+        gender: gender,
+        birthDate: birthDate,
+        familyRole: apiRole,
+        nickname: nickname || undefined,
+        isAlarmEnabled,
+        isFamilyInviteEnabled,
       });
 
       alert('프로필이 수정되었습니다');
@@ -140,17 +163,16 @@ export default function MyPageEdit() {
         </div>
 
         <div className="px-6 pb-10 space-y-6">
-          {/* Profile Avatar */}
-          <div className="self-center items-center flex flex-col gap-4 py-4">
-            <div className="text-[100px] leading-none">
-              {
-                getRoleIconAndText(familyRole || undefined, gender || undefined)
-                  .icon
-              }
-            </div>
-            <p className="font-sans text-sm text-gray-500">
-              프로필 아이콘은 역할에 따라 자동으로 변경돼요
-            </p>
+          {/* Nickname Section */}
+          <div className="bg-white p-6 rounded-3xl shadow-sm flex flex-col gap-4">
+            <p className="font-sans text-base font-bold text-gray-800">닉네임</p>
+            <input
+              type="text"
+              value={nickname}
+              onChange={(e) => setNickname(e.target.value)}
+              placeholder="닉네임을 입력하세요"
+              className="bg-gray-50 rounded-xl px-4 py-3 text-base text-gray-900 outline-none border border-transparent focus:border-onsikku-dark-orange transition-colors"
+            />
           </div>
 
           {/* Gender Section */}
@@ -216,12 +238,17 @@ export default function MyPageEdit() {
             </p>
             <div className="flex flex-row gap-3 flex-wrap">
               {(['PARENT', 'CHILD', 'GRANDPARENT'] as const).map((r) => {
-                const isSelected = familyRole === r;
+                const isSelected = roleCategory === r;
+                let label = '';
+                if (r === 'PARENT') label = '부모';
+                else if (r === 'CHILD') label = '자녀';
+                else if (r === 'GRANDPARENT') label = '조부모';
+
                 return (
                   <button
                     key={r}
                     type="button"
-                    onClick={() => setFamilyRole(r)}
+                    onClick={() => setRoleCategory(r)}
                     className={
                       'px-5 py-3 rounded-xl flex items-center justify-center border-2 ' +
                       (isSelected
@@ -237,11 +264,54 @@ export default function MyPageEdit() {
                           : 'text-gray-500 font-medium')
                       }
                     >
-                      {familyRoleToKo(r)}
+                      {label}
                     </span>
                   </button>
                 );
               })}
+            </div>
+          </div>
+
+          {/* Settings Section */}
+          <div className="bg-white p-6 rounded-3xl shadow-sm flex flex-col gap-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-sans text-base font-bold text-gray-800">알림 설정</p>
+                <p className="text-xs text-gray-500 mt-1">질문 도착 및 답변 알림을 받습니다</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAlarmEnabled(!isAlarmEnabled)}
+                className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${
+                  isAlarmEnabled ? 'bg-onsikku-dark-orange' : 'bg-gray-200'
+                }`}
+              >
+                <span
+                  className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
+                    isAlarmEnabled ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+
+            <div className="flex items-center justify-between border-t border-gray-100 pt-6">
+              <div>
+                <p className="font-sans text-base font-bold text-gray-800">가족 초대 허용</p>
+                <p className="text-xs text-gray-500 mt-1">새로운 가족 멤버 초대를 허용합니다</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsFamilyInviteEnabled(!isFamilyInviteEnabled)}
+                className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${
+                  isFamilyInviteEnabled ? 'bg-onsikku-dark-orange' : 'bg-gray-200'
+                }`}
+              >
+                <span
+                  className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
+                    isFamilyInviteEnabled ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
             </div>
           </div>
 

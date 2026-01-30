@@ -15,8 +15,6 @@ import {
 import { getItem } from '@/utils/AsyncStorage';
 import { getRoleIconAndText } from '@/utils/labels';
 
-const USE_MOCK = true;
-
 function ArrowBackIcon({ size = 24 }: { size?: number }) {
   return (
     <svg
@@ -447,7 +445,7 @@ export default function ReplyDetailPage() {
   );
 
   const fetchData = async () => {
-    if (!questionInstanceId && !USE_MOCK) {
+    if (!questionInstanceId) {
       setError('질문 정보가 없습니다.');
       setLoading(false);
       return;
@@ -455,106 +453,6 @@ export default function ReplyDetailPage() {
     try {
       setLoading(true);
       setError(null);
-
-      if (USE_MOCK) {
-        // Mock Data
-        setCurrentUserId('user-1');
-        setQuestionContent('가족들과 함께 가장 가고 싶은 여행지는 어디인가요?');
-        setQuestionSentAt(new Date(Date.now() - 86400000).toISOString()); // Yesterday
-
-        const mockAnswers: Answer[] = [
-          {
-            answerId: 'ans-3',
-            memberId: 'user-1',
-            familyRole: 'CHILD',
-            gender: 'MALE',
-            createdAt: new Date(Date.now() - 1800000).toISOString(),
-            content: { text: '저도 하와이 가고 싶어요!' },
-            likeReactionCount: 0,
-            angryReactionCount: 0,
-            sadReactionCount: 0,
-            funnyReactionCount: 0,
-            member: {
-              id: 'user-1',
-              familyRole: 'CHILD',
-              gender: 'MALE',
-              profileImageUrl: null,
-            },
-          },
-          {
-            answerId: 'ans-1',
-            memberId: 'user-2',
-            familyRole: 'PARENT',
-            gender: 'MALE',
-            createdAt: new Date(Date.now() - 3600000).toISOString(),
-            content: { text: '나는 하와이가 가고 싶구나.' },
-            likeReactionCount: 1,
-            angryReactionCount: 0,
-            sadReactionCount: 0,
-            funnyReactionCount: 0,
-            member: {
-              id: 'user-2',
-              familyRole: 'PARENT',
-              gender: 'MALE',
-              profileImageUrl: null,
-            },
-          },
-          {
-            answerId: 'ans-2',
-            memberId: 'user-3',
-            familyRole: 'PARENT',
-            gender: 'FEMALE',
-            createdAt: new Date(Date.now() - 7200000).toISOString(),
-            content: { text: '유럽 배낭여행이 꿈이었단다.' },
-            likeReactionCount: 2,
-            angryReactionCount: 0,
-            sadReactionCount: 0,
-            funnyReactionCount: 1,
-            member: {
-              id: 'user-3',
-              familyRole: 'PARENT',
-              gender: 'FEMALE',
-              profileImageUrl: null,
-            },
-          },
-        ];
-        setAnswers(mockAnswers);
-
-        const mockComments: Comment[] = [
-          {
-            id: 'c-1',
-            content: '저도 하와이 좋아요!',
-            createdAt: new Date(Date.now() - 1800000).toISOString(),
-            updatedAt: new Date(Date.now() - 1800000).toISOString(),
-            member: {
-              id: 'user-1',
-              familyRole: 'CHILD',
-              gender: 'MALE',
-              profileImageUrl: null,
-            },
-          },
-          {
-            id: 'c-2',
-            content: '그래 같이 가자꾸나',
-            createdAt: new Date(Date.now() - 900000).toISOString(),
-            updatedAt: new Date(Date.now() - 900000).toISOString(),
-            parent: {
-              id: 'c-1',
-              content: '저도 하와이 좋아요!',
-              createdAt: '',
-              updatedAt: '',
-            },
-            member: {
-              id: 'user-2',
-              familyRole: 'PARENT',
-              gender: 'MALE',
-              profileImageUrl: null,
-            },
-          },
-        ];
-        setComments(mockComments);
-        return;
-      }
 
       const token = await getItem('accessToken');
       if (token) setAccessToken(token);

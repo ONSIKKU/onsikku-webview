@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import ProfileSection from '@/components/mypage/ProfileSection';
 import LogoutButton from '@/components/mypage/LogoutButton';
 import { useSignupStore } from '@/features/signup/signupStore';
 import type { MypageResponse } from '@/utils/api';
@@ -151,29 +150,21 @@ export default function MyPage() {
     );
   }
 
-  const profileProps = {
-    avatarUri: data?.member?.profileImageUrl || '',
-    familyRole: data?.member?.familyRole,
-    gender: data?.member?.gender,
-  };
-
   return (
     <div className="-mx-4 -mt-4 min-h-screen bg-onsikku-main-orange">
       <div className="px-4 pt-5 pb-[30px]">
         <div className="gap-4 flex flex-col">
-          <ProfileSection {...profileProps} />
-
           {/* 내 정보 카드 */}
           <div className="bg-white w-full p-5 rounded-3xl shadow-sm">
             <div className="flex flex-row items-center justify-between mb-4">
-              <div className="text-lg font-bold text-gray-800">내 정보</div>
+              <div className="text-xl font-bold text-gray-800">기본 정보</div>
 
               <button
                 type="button"
                 onClick={onEditProfile}
                 className="flex flex-row items-center px-3 py-1.5 bg-orange-50 rounded-lg active:opacity-70"
               >
-                <IoCreateOutline size={16} color="#FB923C" />
+                <IoCreateOutline size={18} color="#FB923C" />
                 <span className="text-sm font-medium text-orange-600 ml-1">
                   수정
                 </span>
@@ -183,22 +174,32 @@ export default function MyPage() {
             <div className="gap-3 flex flex-col">
               <div className="flex flex-row items-center justify-between py-2 border-b border-gray-100">
                 <div className="flex flex-row items-center">
-                  <IoHomeOutline size={20} color="#FB923C" />
-                  <span className="text-sm text-gray-600 ml-2">가족명</span>
+                  <IoPersonCircleOutline size={22} color="#FB923C" />
+                  <span className="text-base text-gray-600 ml-2">닉네임</span>
                 </div>
-                <span className="text-sm font-medium text-gray-800">
+                <span className="text-base font-medium text-gray-800">
+                  {data?.member?.nickname || '-'}
+                </span>
+              </div>
+
+              <div className="flex flex-row items-center justify-between py-2 border-b border-gray-100">
+                <div className="flex flex-row items-center">
+                  <IoHomeOutline size={22} color="#FB923C" />
+                  <span className="text-base text-gray-600 ml-2">가족명</span>
+                </div>
+                <span className="text-base font-medium text-gray-800">
                   {data?.family?.familyName}
                 </span>
               </div>
 
               <div className="flex flex-row items-center justify-between py-2 border-b border-gray-100">
                 <div className="flex flex-row items-center">
-                  <IoPeopleOutline size={20} color="#FB923C" />
-                  <span className="text-sm text-gray-600 ml-2">
+                  <IoPeopleOutline size={22} color="#FB923C" />
+                  <span className="text-base text-gray-600 ml-2">
                     가족 내 역할
                   </span>
                 </div>
-                <span className="text-sm font-medium text-gray-800">
+                <span className="text-base font-medium text-gray-800">
                   {
                     getRoleIconAndText(
                       data?.member?.familyRole,
@@ -210,20 +211,20 @@ export default function MyPage() {
 
               <div className="flex flex-row items-center justify-between py-2 border-b border-gray-100">
                 <div className="flex flex-row items-center">
-                  <IoCalendarOutline size={20} color="#FB923C" />
-                  <span className="text-sm text-gray-600 ml-2">생년월일</span>
+                  <IoCalendarOutline size={22} color="#FB923C" />
+                  <span className="text-base text-gray-600 ml-2">생년월일</span>
                 </div>
-                <span className="text-sm font-medium text-gray-800">
+                <span className="text-base font-medium text-gray-800">
                   {data?.member?.birthDate ?? '-'}
                 </span>
               </div>
 
               <div className="flex flex-row items-center justify-between py-2">
                 <div className="flex flex-row items-center">
-                  <IoMaleFemaleOutline size={20} color="#FB923C" />
-                  <span className="text-sm text-gray-600 ml-2">성별</span>
+                  <IoMaleFemaleOutline size={22} color="#FB923C" />
+                  <span className="text-base text-gray-600 ml-2">성별</span>
                 </div>
-                <span className="text-sm font-medium text-gray-800">
+                <span className="text-base font-medium text-gray-800">
                   {genderToKo(data?.member?.gender)}
                 </span>
               </div>
@@ -232,7 +233,7 @@ export default function MyPage() {
 
           {/* 함께하는 가족 */}
           <div className="bg-white w-full p-5 rounded-3xl shadow-sm">
-            <div className="text-lg font-bold text-gray-800 mb-4">
+            <div className="text-xl font-bold text-gray-800 mb-4">
               함께하는 가족
             </div>
             <div className="gap-3 flex flex-col">
@@ -247,8 +248,8 @@ export default function MyPage() {
                     }
                   >
                     <div className="flex flex-row items-center">
-                      <IoPersonCircleOutline size={24} color="#FB923C" />
-                      <span className="text-sm text-gray-600 ml-2">
+                      <IoPersonCircleOutline size={26} color="#FB923C" />
+                      <span className="text-base text-gray-600 ml-2">
                         {
                           getRoleIconAndText(member.familyRole, member.gender)
                             .text
@@ -262,12 +263,11 @@ export default function MyPage() {
                       )}
                     </div>
 
-                    <span className="text-sm font-medium text-gray-800">
-                      {member.familyRole === 'GRANDPARENT'
-                        ? '조부모님'
-                        : member.familyRole === 'PARENT'
-                          ? '부모님'
-                          : '자녀'}
+                    <span className="text-base font-medium text-gray-800">
+                      {
+                        getRoleIconAndText(member.familyRole, member.gender)
+                          .text
+                      }
                     </span>
                   </div>
                 );
@@ -283,15 +283,15 @@ export default function MyPage() {
 
           {/* 설정 카드 */}
           <div className="bg-white w-full p-5 rounded-3xl shadow-sm">
-            <div className="text-lg font-bold text-gray-800 mb-4">설정</div>
+            <div className="text-xl font-bold text-gray-800 mb-4">설정</div>
 
             <div className="gap-3 flex flex-col">
               <div className="flex flex-row items-center justify-between py-2 border-t border-gray-100 pt-3">
                 <div className="flex flex-row items-center flex-1">
-                  <IoKeyOutline size={20} color="#FB923C" />
+                  <IoKeyOutline size={22} color="#FB923C" />
                   <div className="ml-2">
-                    <div className="text-sm text-gray-800">가족 초대코드</div>
-                    <div className="text-xs text-gray-500 mt-0.5 font-mono">
+                    <div className="text-base text-gray-800">가족 초대코드</div>
+                    <div className="text-sm text-gray-500 mt-0.5 font-mono">
                       {data?.family?.invitationCode || '-'}
                     </div>
                   </div>

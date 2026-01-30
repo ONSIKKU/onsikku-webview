@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { setItem } from "@/utils/AsyncStorage";
+import { setAccessToken } from "@/utils/api";
 
 const API_BASE =
   (import.meta.env.VITE_API_BASE as string | undefined) || "https://api.onsikku.xyz";
@@ -10,8 +11,12 @@ export default function KakaoLoginCallback() {
   const [searchParams] = useSearchParams();
   const code = searchParams.get("code");
   const [loading, setLoading] = useState(true);
+  const called = useRef(false);
 
   useEffect(() => {
+    if (called.current) return;
+    called.current = true;
+
     (async () => {
       try {
         if (!code || typeof code !== "string") {
@@ -39,6 +44,7 @@ export default function KakaoLoginCallback() {
         }
         if (accessToken) {
           await setItem("accessToken", accessToken);
+          setAccessToken(accessToken); // 메모리상 토큰 즉시 업데이트
         }
 
         // 4) 라우팅 분기
@@ -48,6 +54,7 @@ export default function KakaoLoginCallback() {
           navigate("/signup/role", { replace: true });
         }
       } catch (e: any) {
+        console.error("Kakao Login Error:", e);
         alert(e?.message || "로그인 처리 중 오류가 발생했습니다.");
         navigate("/", { replace: true });
       } finally {
