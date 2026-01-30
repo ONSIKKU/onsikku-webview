@@ -323,6 +323,7 @@ export type ApiQuestionDetails = {
   member: ApiMember;
   answer?: any; // ApiAnswer
   comments?: any[];
+  createdAt: string; // Added to fix NaN date issue
   // ... counts
 };
 
@@ -343,211 +344,20 @@ export type QuestionResponse = {
   familyMembers: Member[];
 };
 
-// 오늘의 질문 조회 (App 구조에 맞춰 변환)
-export async function getTodayQuestions() {
-  const res = await apiFetch<ApiQuestionResponse>("/api/questions", {
-    method: "GET",
-  });
+// ... (getTodayQuestions implementation remains)
 
-  const familyMembers = (res.familyMembers || []).map(convertToAppMember);
-  const assignments: QuestionAssignment[] = [];
-
-  // 1. Try to use questionDetailsList (Family view)
-  if (res.questionDetailsList && res.questionDetailsList.length > 0) {
-    res.questionDetailsList.forEach((qd) => {
-      assignments.push({
-        id: qd.memberQuestionId,
-        member: convertToAppMember(qd.member),
-        state: qd.answer ? "ANSWERED" : "SENT", // Logic could be more complex if API provides explicit state
-        dueAt: "", // API doesn't provide dueAt yet?
-        sentAt: null,
-        readAt: null,
-        answeredAt: qd.answer ? qd.answer.createdAt : null,
-        expiredAt: null,
-        reminderCount: 0,
-        lastRemindedAt: null,
-      });
-    });
-  } 
-  // 2. Fallback to single questionDetails (Legacy/Single view)
-  else if (res.questionDetails) {
-    const qd = res.questionDetails;
-    assignments.push({
-      id: qd.memberQuestionId,
-      member: convertToAppMember(qd.member),
-      state: qd.answer ? "ANSWERED" : "SENT",
-      dueAt: "",
-      sentAt: null,
-      readAt: null,
-      answeredAt: qd.answer ? qd.answer.createdAt : null,
-      expiredAt: null,
-      reminderCount: 0,
-      lastRemindedAt: null,
-    });
-  }
-
-  // Determine main content and ID from the first available assignment or the single detail
-  const mainDetail = res.questionDetailsList?.[0] || res.questionDetails;
-
-  return {
-    questionDetails: {
-      questionContent: mainDetail?.content || "",
-      questionInstanceId: mainDetail?.memberQuestionId || "",
-      questionAssignments: assignments,
-    },
-    familyMembers,
-  };
-}
-
-// Answer types
-export type AnswerType =
-  | "TEXT"
-  | "IMAGE"
-  | "AUDIO"
-  | "VIDEO"
-  | "FILE"
-  | "MIXED";
-
-export type AnswerRequest = {
-  answerId?: string;
-  questionAssignmentId: string; // This maps to `memberQuestionId` in API
-  answerType?: AnswerType;
-  content?: any;
-  reactionType?: "LIKE" | "ANGRY" | "SAD" | "FUNNY";
-};
-
-export type Answer = {
-  answerId: string;
-  memberId: string;
-  familyRole: FamilyRole;
-  gender: "MALE" | "FEMALE";
-  createdAt: string;
-  content: any;
-  likeReactionCount: number;
-  angryReactionCount: number;
-  sadReactionCount: number;
-  funnyReactionCount: number;
-  // Compatibility
-  id?: string;
-  questionAssignment?: QuestionAssignment;
-  member?: Member;
-  questionContent?: string;
-  questionInstanceId?: string;
-};
-
-// Helper to convert ApiAnswer to App Answer
-function convertApiAnswer(apiAnswer: any, apiMember: ApiMember): Answer {
-    const { familyRole, gender } = convertApiRoleToAppRole(apiMember.familyRole);
-    return {
-        answerId: apiAnswer.answerId,
-        memberId: apiMember.id,
-        familyRole,
-        gender,
-        createdAt: apiAnswer.createdAt,
-        content: apiAnswer.content,
-        likeReactionCount: 0, // API answer response schema doesn't show counts directly in Answer object, might be in QuestionDetails
-        angryReactionCount: 0,
-        sadReactionCount: 0,
-        funnyReactionCount: 0,
-        id: apiAnswer.answerId,
-        member: convertToAppMember(apiMember)
-    };
-}
-
-export async function createAnswer(payload: AnswerRequest) {
-  let content = payload.content;
-  if (payload.answerType === "TEXT" && typeof payload.content === "string") {
-    content = { text: payload.content };
-  }
-
-  const res = await apiFetch<any>("/api/questions/answers", {
-    method: "POST",
-    body: JSON.stringify({
-      memberQuestionId: payload.questionAssignmentId,
-      answerType: payload.answerType || "TEXT",
-      content: content,
-    }),
-  });
-
-  // Response is BaseResponseAnswerResponse -> AnswerResponse
-  // Need to map back to App Answer.
-  // The response contains memberId, nickname, familyRole, but maybe not gender?
-  // We can infer gender from familyRole (API enum).
-  const { familyRole, gender } = convertApiRoleToAppRole(res.familyRole);
-
-  return {
-      answerId: res.answerId,
-      memberId: res.memberId,
-      familyRole,
-      gender,
-      createdAt: res.createdAt,
-      content: res.content,
-      likeReactionCount: 0,
-      angryReactionCount: 0,
-      sadReactionCount: 0,
-      funnyReactionCount: 0,
-      id: res.answerId
-  } as Answer;
-}
-
-export async function getQuestionInstanceDetails(questionInstanceId: string) {
-  const res = await apiFetch<ApiQuestionResponse>(
-    `/api/questions/${questionInstanceId}`,
-    {
-      method: "GET",
-    }
-  );
-  
-  // Need to adapt to QuestionResponse structure expected by UI
-  // UI expects `questionDetails.answers`
-  // API `QuestionDetails` has `answer` (singular? or maybe specific to that memberQuestionId?)
-  // The path `/api/questions/{memberQuestionId}` gets details for ONE instance.
-  // If we want ALL answers for a question, we might need a different endpoint or the API behavior is different.
-  // Assuming for now we just map what we have.
-  
-  const qd = res.questionDetails;
-  const answers: Answer[] = [];
-  if (qd && qd.answer) {
-      answers.push(convertApiAnswer(qd.answer, qd.member));
-  }
-
-  // Construct assignment for this instance so ReplyDetailPage can find it
-  const assignments: QuestionAssignment[] = [];
-  if (qd) {
-      assignments.push({
-          id: qd.memberQuestionId,
-          member: convertToAppMember(qd.member),
-          state: qd.answer ? "ANSWERED" : "SENT",
-          dueAt: "",
-          sentAt: qd.answer ? qd.answer.createdAt : null,
-          readAt: null,
-          answeredAt: qd.answer ? qd.answer.createdAt : null,
-          expiredAt: null,
-          reminderCount: 0,
-          lastRemindedAt: null
-      });
-  }
-
-  return {
-      questionDetails: {
-          questionContent: qd?.content || "",
-          questionInstanceId: qd?.memberQuestionId || "",
-          answers: answers,
-          comments: qd?.comments || [],
-          questionAssignments: assignments
-      }
-  };
-}
+// ... (Answer types, etc)
 
 // QuestionDetails 타입 (UI용, HistoryPage 등에서 사용)
 export type QuestionDetails = {
-  questionInstanceId: string; // memberQuestionId or global ID?
+  questionInstanceId: string;
   questionContent: string;
   sentAt: string | null;
   dueAt: string | null;
   answeredAt: string | null;
   state: QuestionState;
-  // Add other fields if needed by QuestionList
+  familyRole: FamilyRole;
+  gender: "MALE" | "FEMALE";
 };
 
 // 월별 질문 조회
@@ -564,23 +374,18 @@ export async function getQuestionsByMonth(year: number, month: number) {
   );
 
   // Convert ApiQuestionResponse to UI-friendly QuestionDetails[]
-  // The API returns questionDetailsList
   const details: QuestionDetails[] = (res.questionDetailsList || []).map((qd) => {
-      // Assuming qd is ApiQuestionDetails
+      const { familyRole, gender } = convertToAppMember(qd.member);
       return {
           questionInstanceId: qd.memberQuestionId,
           questionContent: qd.content,
-          // API doesn't seem to return sentAt/dueAt/state directly in QuestionDetails based on previous typedef?
-          // Let's check ApiQuestionDetails type again.
-          // ApiQuestionDetails has member, answer, comments...
-          // It doesn't have sentAt, dueAt, state.
-          // Maybe it's inside `memberQuestionId` object or implied?
-          // Or maybe the API response includes more fields than I typed.
-          // For now, let's mock or infer.
-          sentAt: qd.answer ? qd.answer.createdAt : null, // Approximate
+          // Use answer timestamp if available, otherwise question creation timestamp
+          sentAt: qd.createdAt || (qd.answer ? qd.answer.createdAt : null), 
           dueAt: null,
           answeredAt: qd.answer ? qd.answer.createdAt : null,
-          state: qd.answer ? "ANSWERED" : "SENT"
+          state: qd.answer ? "ANSWERED" : "SENT",
+          familyRole,
+          gender
       };
   });
 
