@@ -74,11 +74,11 @@ export default function NotificationList() {
   }
 
   if (error) {
-     return <div className="py-10 text-center text-gray-500">{error}</div>;
+     return <div className="py-10 text-center text-gray-500 text-base">{error}</div>;
   }
 
   if (notifications.length === 0) {
-    return <div className="py-10 text-center text-gray-500">새로운 알림이 없습니다.</div>;
+    return <div className="py-10 text-center text-gray-500 text-base">새로운 알림이 없습니다.</div>;
   }
 
   return (

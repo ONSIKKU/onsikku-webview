@@ -235,7 +235,7 @@ const ReactionButton = ({
       className="flex-row items-center gap-1 flex active:opacity-70"
     >
       <span className="text-base">{icon}</span>
-      <span className="font-sans text-xs text-gray-500">{count}</span>
+      <span className="font-sans text-sm text-gray-500">{count}</span>
     </button>
   );
 };
@@ -275,7 +275,7 @@ const FeedCard = ({
             <div className="font-sans font-bold text-gray-900 text-base">
               {roleText}
             </div>
-            <div className="font-sans text-xs text-gray-400">
+            <div className="font-sans text-sm text-gray-400">
               {formatTimeAgo(answer.createdAt)}
             </div>
           </div>
@@ -353,7 +353,7 @@ const CommentCard = ({
                 <div className="font-sans font-bold text-gray-900 text-sm">
                   {roleText}
                 </div>
-                <div className="font-sans text-xs text-gray-400">
+                <div className="font-sans text-sm text-gray-400">
                   {formatTimeAgo(comment.createdAt)}
                 </div>
               </div>
@@ -383,7 +383,7 @@ const CommentCard = ({
             </div>
           </div>
 
-          <div className="font-sans text-sm text-gray-900 leading-relaxed mb-2 whitespace-pre-wrap">
+          <div className="font-sans text-base text-gray-900 leading-relaxed mb-2 whitespace-pre-wrap">
             {comment.content}
           </div>
 
@@ -393,7 +393,7 @@ const CommentCard = ({
               onClick={onReply}
               className="active:opacity-70"
             >
-              <span className="font-sans text-xs font-medium text-gray-500">
+              <span className="font-sans text-sm font-medium text-gray-500">
                 답글 달기
               </span>
             </button>
@@ -840,7 +840,7 @@ export default function ReplyDetailPage() {
           <div className="bg-white rounded-2xl px-2 py-2 shadow-lg border border-orange-100">
             {replyingToComment && (
               <div className="flex-row items-center justify-between bg-orange-50 px-3 py-2 rounded-lg mb-2 flex">
-                <div className="font-sans text-xs text-gray-600">
+                <div className="font-sans text-sm text-gray-600">
                   <span className="font-sans font-bold">
                     {
                       getRoleIconAndText(

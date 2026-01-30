@@ -193,7 +193,7 @@ export default function HomePage() {
     return (
       <div className="-mx-4 -mt-4 min-h-screen bg-orange-50 flex flex-col items-center justify-center gap-6 px-4">
         <div className="h-12 w-12 animate-spin rounded-full border-4 border-orange-200 border-t-onsikku-dark-orange" />
-        <p className="font-sans text-gray-600">질문을 불러오는 중...</p>
+        <p className="font-sans text-gray-600 text-base">질문을 불러오는 중...</p>
       </div>
     );
   }
@@ -203,7 +203,7 @@ export default function HomePage() {
   if (error && questions.length === 0) {
     return (
       <div className="-mx-4 -mt-4 min-h-screen bg-orange-50 flex items-center justify-center px-4">
-        <p className="font-sans text-red-500 text-center">{error}</p>
+        <p className="font-sans text-red-500 text-center text-base">{error}</p>
       </div>
     );
   }
@@ -217,7 +217,7 @@ export default function HomePage() {
       <div className="mx-auto w-full max-w-md px-5 pb-10 pt-3">
         {/* Header Section */}
         <div className="mb-6 mt-2">
-          <p className="font-sans text-gray-500 font-medium text-sm mb-1 ml-1">
+          <p className="font-sans text-gray-500 font-medium text-base mb-1 ml-1">
             {new Date().toLocaleDateString('ko-KR', {
               month: 'long',
               day: 'numeric',
@@ -258,13 +258,13 @@ export default function HomePage() {
             {loadingAnswers ? (
               <div className="w-full flex flex-col items-center justify-center py-8">
                 <div className="h-6 w-6 animate-spin rounded-full border-2 border-orange-200 border-t-onsikku-dark-orange" />
-                <p className="font-sans text-gray-500 mt-2 text-sm">
+                <p className="font-sans text-gray-500 mt-2 text-base">
                   답변을 불러오는 중...
                 </p>
               </div>
             ) : recentAnswersData.length === 0 ? (
               <div className="w-full flex items-center justify-center py-8">
-                <p className="font-sans text-gray-500 text-sm">
+                <p className="font-sans text-gray-500 text-base">
                   아직 답변이 없습니다
                 </p>
               </div>

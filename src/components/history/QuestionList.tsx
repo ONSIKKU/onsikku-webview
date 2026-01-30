@@ -46,7 +46,7 @@ export default function QuestionList({
       <div className="w-full">
         <div className="bg-white p-6 rounded-2xl shadow-sm items-center justify-center flex flex-col">
           <div className="h-6 w-6 animate-spin rounded-full border-2 border-orange-200 border-t-onsikku-dark-orange" />
-          <div className="font-sans text-gray-500 mt-4">
+          <div className="font-sans text-gray-500 mt-4 text-base">
             질문을 불러오는 중...
           </div>
         </div>
@@ -58,7 +58,7 @@ export default function QuestionList({
     return (
       <div className="w-full">
         <div className="bg-white p-6 rounded-2xl shadow-sm">
-          <div className="font-sans text-red-500 text-center">{error}</div>
+          <div className="font-sans text-red-500 text-center text-base">{error}</div>
         </div>
       </div>
     );
@@ -68,7 +68,7 @@ export default function QuestionList({
     return (
       <div className="w-full">
         <div className="bg-white p-6 rounded-2xl shadow-sm">
-          <div className="font-sans text-gray-500 text-center">
+          <div className="font-sans text-gray-500 text-center text-base">
             이 기간에 질문이 없습니다.
           </div>
         </div>

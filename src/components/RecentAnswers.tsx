@@ -24,13 +24,13 @@ export default function RecentAnswers({
           <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center">
             <span className="text-base">{roleIcon}</span>
           </div>
-          <span className="font-medium text-gray-800">{roleName}</span>
+          <span className="font-medium text-gray-800 text-base">{roleName}</span>
         </div>
-        <span className="text-xs text-gray-500">{date}</span>
+        <span className="text-sm text-gray-500">{date}</span>
       </div>
 
       <p
-        className="font-sans text-sm text-gray-700 leading-5"
+        className="font-sans text-base text-gray-700 leading-5"
         style={{
           display: '-webkit-box',
           WebkitLineClamp: 3,

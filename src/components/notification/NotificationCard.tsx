@@ -53,8 +53,8 @@ export default function NotificationCard({ item }: { item: Notification }) {
       </div>
 
       <div className="mt-3 ml-10">
-        <div className="text-sm text-gray-700">{item.message}</div>
-        <div className="text-xs text-gray-400 mt-2">{item.time}</div>
+        <div className="text-base text-gray-700">{item.message}</div>
+        <div className="text-sm text-gray-400 mt-2">{item.time}</div>
       </div>
     </div>
   );

@@ -190,7 +190,7 @@ export default function HistoryPage() {
               ) : (
                 <IoArrowUpOutline size={14} className="text-gray-600" />
               )}
-              <div className="font-sans text-xs font-medium text-gray-600 ml-1">
+              <div className="font-sans text-sm font-medium text-gray-600 ml-1">
                 {sortOrder === 'newest' ? '최신순' : '오래된순'}
               </div>
             </button>

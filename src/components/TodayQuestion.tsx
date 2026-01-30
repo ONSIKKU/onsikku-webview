@@ -92,7 +92,7 @@ export default function TodayQuestion({
             새로운 질문을 기다려 주세요
           </div>
           <div className="bg-gray-50 px-4 py-2 rounded-full mt-1">
-            <div className="text-gray-500 text-center text-xs font-medium">
+            <div className="text-gray-500 text-center text-sm font-medium">
               매일 밤 9시 30분에 질문이 도착해요 🌙
             </div>
           </div>
@@ -116,7 +116,7 @@ export default function TodayQuestion({
 
       <div className="flex flex-col items-center w-full">
         {hasNoQuestion ? (
-          <div className="font-sans text-center text-sm text-gray-400 bg-gray-50 px-4 py-2 rounded-full">
+          <div className="font-sans text-center text-base text-gray-400 bg-gray-50 px-4 py-2 rounded-full">
             새로운 질문을 기다려주세요 🌙
           </div>
         ) : isAnswered ? (
@@ -126,12 +126,12 @@ export default function TodayQuestion({
               onClick={handleViewAnswer}
               className="bg-orange-100 px-6 py-3 rounded-full active:opacity-70"
             >
-              <span className="font-sans font-bold text-orange-600 text-sm">
+              <span className="font-sans font-bold text-orange-600 text-base">
                 {isUserAssignment ? '내 답변 보기' : '답변 보기'}
               </span>
             </button>
             {isUserAssignment && (
-              <div className="font-sans text-center text-xs text-gray-400 mt-3">
+              <div className="font-sans text-center text-sm text-gray-400 mt-3">
                 오늘 답변을 완료했어요! 🎉
               </div>
             )}
@@ -149,7 +149,7 @@ export default function TodayQuestion({
           </button>
         ) : (
           <div className="bg-gray-100 px-6 py-3 rounded-full">
-            <div className="font-sans font-bold text-gray-400 text-sm">
+            <div className="font-sans font-bold text-gray-400 text-base">
               답변을 기다리고 있어요 ⏳
             </div>
           </div>

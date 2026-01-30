@@ -44,11 +44,11 @@ export default function QuestionCard({
     >
       <div className="flex flex-row justify-between items-start">
         <div className="flex flex-row items-center">
-          <div className="font-sans text-sm font-bold text-orange-500 mr-2">
+          <div className="font-sans text-base font-bold text-orange-500 mr-2">
             {item.date}
           </div>
           <span style={{ fontSize: 18 }}>{item.authorAvatar}</span>
-          <div className="font-sans text-sm text-gray-700 ml-1">
+          <div className="font-sans text-base text-gray-700 ml-1">
             {item.author}
           </div>
         </div>
@@ -64,9 +64,9 @@ export default function QuestionCard({
 
       <div className="flex flex-row items-center justify-between mt-2">
         {isPending ? (
-          <div className="font-sans text-sm text-gray-500">답변 대기 중</div>
+          <div className="font-sans text-base text-gray-500">답변 대기 중</div>
         ) : (
-          <div className="font-sans text-sm font-semibold text-onsikku-dark-orange">
+          <div className="font-sans text-base font-semibold text-onsikku-dark-orange">
             답변 완료
           </div>
         )}
