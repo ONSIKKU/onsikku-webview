@@ -24,7 +24,6 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [questions, setQuestions] = useState<QuestionAssignment[]>([]);
   const [familyMembers, setFamilyMembers] = useState<Member[]>([]);
-  const [error, setError] = useState<string>('');
   const [questionContent, setQuestionContent] = useState<string>('');
   const [questionInstanceId, setQuestionInstanceId] = useState<string | null>(
     null,
@@ -46,7 +45,9 @@ export default function HomePage() {
   const fetchTodayQuestions = useCallback(async () => {
     try {
       // Don't set global loading on refresh, just handle data update
-      if (!refreshing) setError('');
+      if (!refreshing) {
+        // no-op
+      }
 
       const token = await getItem('accessToken');
       if (!token) {
@@ -73,7 +74,7 @@ export default function HomePage() {
     } catch (e: any) {
       console.error('[오늘의 질문 조회 에러]', e);
       // Only show error if not existing data or if explicit error handling needed
-      if (!questions.length) setError(e?.message || '질문을 불러오지 못했습니다');
+      if (!questions.length) console.error(e?.message || '질문을 불러오지 못했습니다');
     }
   }, [refreshing, questions.length]);
 
@@ -84,7 +85,7 @@ export default function HomePage() {
       const token = await getItem('accessToken');
       if (token) {
         setAccessToken(token);
-        const answers = await getRecentAnswers(3, 10);
+        const answers = await getRecentAnswers(10);
         setRecentAnswers(answers);
       }
     } catch (e) {

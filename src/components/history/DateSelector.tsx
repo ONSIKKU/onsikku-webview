@@ -1,8 +1,6 @@
-import React from 'react';
 import {
   IoChevronBackOutline,
   IoChevronForwardOutline,
-  IoTimeOutline,
 } from 'react-icons/io5';
 
 interface DateSelectorProps {

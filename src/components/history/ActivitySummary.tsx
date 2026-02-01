@@ -1,4 +1,3 @@
-import React from 'react';
 import type { QuestionDetails } from '@/utils/api';
 
 const StatItem = ({

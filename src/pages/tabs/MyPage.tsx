@@ -32,14 +32,12 @@ export default function MyPage() {
 
   const [data, setData] = useState<MypageResponse | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string>('');
   const [updating, setUpdating] = useState<boolean>(false);
   const [deleting, setDeleting] = useState<boolean>(false);
 
   const fetchMyPage = useCallback(async () => {
     try {
       setLoading(true);
-      setError('');
 
       const token = await getItem('accessToken');
       if (token) setAccessToken(token);
@@ -47,7 +45,7 @@ export default function MyPage() {
       const res = await getMyPage();
       setData(res);
     } catch (e: any) {
-      setError(e?.message || '마이페이지를 불러오지 못했습니다');
+      console.error(e?.message || '마이페이지를 불러오지 못했습니다');
     } finally {
       setLoading(false);
     }

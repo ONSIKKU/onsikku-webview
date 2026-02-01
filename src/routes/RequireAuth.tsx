@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { Navigate, Outlet } from "react-router-dom";
-import { getItem } from "@/utils/AsyncStorage";
 
 export default function RequireAuth() {
   const [ok, setOk] = useState<boolean | null>(null);

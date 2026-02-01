@@ -62,7 +62,7 @@ export const roleToKo = (v?: string | null) => {
 // 역할(API Enum)에 따른 아이콘과 텍스트 반환
 export const getRoleIconAndText = (
   role?: FamilyRole | null,
-  gender?: string | null,
+  _gender?: string | null,
 ): { icon: string; text: string; color: string } => {
   if (!role) {
     return { icon: '👤', text: '-', color: '#D1D5DB' };

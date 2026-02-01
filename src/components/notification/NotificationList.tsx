@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import NotificationCard from './NotificationCard';
 import type { Notification } from './NotificationCard';
 import { getNotifications, setAccessToken } from '@/utils/api';

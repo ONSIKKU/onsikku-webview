@@ -1,4 +1,3 @@
-import React from 'react';
 import { IoCopyOutline, IoRefreshOutline } from 'react-icons/io5';
 
 export default function InviteCodeCard({

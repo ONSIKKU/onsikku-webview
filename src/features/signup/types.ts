@@ -1,4 +1,6 @@
-import { SignupRole } from "./signupStore";
+import type { SignupRole } from "./signupStore";
+
+export type { SignupRole };
 
 export type RoleItem = {
   role: SignupRole;

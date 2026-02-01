@@ -23,7 +23,6 @@ export default function HistoryPage() {
 
   const [questions, setQuestions] = useState<QuestionDetails[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   const [showDatePicker, setShowDatePicker] = useState(false);
   // Temp state for modal remains local
@@ -52,7 +51,6 @@ export default function HistoryPage() {
   const fetchQuestions = useCallback(async () => {
     try {
       setLoading(true);
-      setError(null);
 
       const token = await getItem('accessToken');
       if (token) setAccessToken(token);
@@ -70,7 +68,6 @@ export default function HistoryPage() {
       setQuestions(sortedQuestions);
     } catch (e: any) {
       console.error('[월별 질문 조회 에러]', e);
-      setError(e?.message || '질문을 불러오는데 실패했습니다.');
     } finally {
       setLoading(false);
     }
@@ -221,7 +218,6 @@ export default function HistoryPage() {
           <QuestionList
             questions={questions}
             loading={loading}
-            error={error}
             onQuestionPress={handleQuestionPress}
           />
         </div>

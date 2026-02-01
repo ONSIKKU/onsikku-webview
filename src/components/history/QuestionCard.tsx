@@ -1,4 +1,3 @@
-import React from 'react';
 import { IoChevronForwardOutline } from 'react-icons/io5';
 import RoleIcon from '../RoleIcon';
 

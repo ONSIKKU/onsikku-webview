@@ -4,14 +4,16 @@ import Button from "@/components/Button";
 import ImageUploadBox from "@/components/ImageUploadBox";
 import SignUpHeader from "@/components/SignUpHeader";
 import { useSignupStore } from "@/features/signup/signupStore";
-import { getRoleIconAndText } from "@/utils/labels";
 
 export default function ImagePage() {
   const navigate = useNavigate();
   const { role, uri, setUri } = useSignupStore();
 
   const title = useMemo(() => {
-    const { roleText } = getRoleIconAndText(role);
+    let roleText = '';
+    if (role === 'PARENT') roleText = '부모님';
+    else if (role === 'CHILD') roleText = '자녀';
+    else if (role === 'GRANDPARENT') roleText = '조부모님';
     return roleText ? `${roleText} 프로필을 설정해요` : "프로필을 설정해요";
   }, [role]);
 

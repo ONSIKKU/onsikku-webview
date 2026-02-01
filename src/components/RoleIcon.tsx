@@ -1,5 +1,3 @@
-import React from 'react';
-
 interface RoleIconProps {
   icon: string;
   size?: number;

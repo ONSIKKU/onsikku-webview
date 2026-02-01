@@ -19,7 +19,6 @@ export default function FamilyCodePage() {
     familyInvitationCode,
     setFamilyInvitationCode,
     role,
-    grandParentType,
     gender,
     birthDate,
     nickname,

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getItem } from '@/utils/AsyncStorage';
 import { getMyPage, patchMyPage, setAccessToken } from '@/utils/api';
-import { familyRoleToKo, genderToKo, getApiFamilyRole } from '@/utils/labels';
+import { genderToKo, getApiFamilyRole } from '@/utils/labels';
 import { IoArrowBack, IoCalendarOutline } from 'react-icons/io5';
 import { useModalStore } from '@/features/modal/modalStore';
 
@@ -12,7 +12,6 @@ export default function MyPageEdit() {
 
   const [loading, setLoading] = useState<boolean>(true);
   const [saving, setSaving] = useState<boolean>(false);
-  const [error, setError] = useState<string>('');
 
   const [gender, setGender] = useState<'MALE' | 'FEMALE' | ''>('');
   const [birthDate, setBirthDate] = useState<string>('');
@@ -54,7 +53,7 @@ export default function MyPageEdit() {
         setIsAlarmEnabled(res.member.alarmEnabled ?? true);
         setIsFamilyInviteEnabled(res.family.familyInviteEnabled ?? true);
       } catch (e: any) {
-        setError(e?.message || '정보를 불러오지 못했습니다');
+        console.error(e?.message || '정보를 불러오지 못했습니다');
       } finally {
         setLoading(false);
       }
@@ -81,7 +80,6 @@ export default function MyPageEdit() {
       const apiRole = getApiFamilyRole(roleCategory, gender);
 
       await patchMyPage({
-        gender: gender,
         birthDate: birthDate,
         familyRole: apiRole,
         nickname: nickname || undefined,

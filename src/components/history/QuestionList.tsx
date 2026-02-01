@@ -1,4 +1,3 @@
-import React from 'react';
 import type { QuestionDetails } from '@/utils/api';
 import { getRoleIconAndText } from '@/utils/labels';
 import QuestionCard, { type Question } from './QuestionCard';
@@ -6,7 +5,6 @@ import QuestionCard, { type Question } from './QuestionCard';
 interface QuestionListProps {
   questions: QuestionDetails[];
   loading: boolean;
-  error: string | null;
   onQuestionPress?: (
     questionAssignmentId: string,
     question: string,
@@ -26,7 +24,6 @@ const formatDate = (dateString: string) => {
 export default function QuestionList({
   questions,
   loading,
-  error,
   onQuestionPress,
 }: QuestionListProps) {
   const convertedQuestions: Question[] = questions.map((q) => {

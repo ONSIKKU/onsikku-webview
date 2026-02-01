@@ -1,4 +1,3 @@
-import React from 'react';
 import { getRoleIconAndText } from '@/utils/labels';
 
 export default function FamilyMemberCard({

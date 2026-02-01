@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import type { Answer, Comment, QuestionAssignment } from '@/utils/api';
+import type { Answer, Comment } from '@/utils/api';
 import {
   addReaction,
   createComment,
@@ -246,11 +246,13 @@ const FeedCard = ({
   answer,
   isMyAnswer,
   onEdit,
+  onDelete,
   onReaction,
 }: {
   answer: Answer;
   isMyAnswer: boolean;
   onEdit: () => void;
+  onDelete: () => void;
   onReaction: (type: 'LIKE' | 'ANGRY' | 'SAD' | 'FUNNY') => void;
 }) => {
   const role = answer.familyRole || answer.member?.familyRole;
@@ -284,14 +286,24 @@ const FeedCard = ({
         </div>
 
         {isMyAnswer && (
-          <button
-            type="button"
-            onClick={onEdit}
-            className="p-2 active:opacity-70"
-            aria-label="edit answer"
-          >
-            <PencilIcon size={18} color="#9CA3AF" />
-          </button>
+          <div className="flex flex-row gap-1">
+            <button
+              type="button"
+              onClick={onEdit}
+              className="p-2 active:opacity-70"
+              aria-label="edit answer"
+            >
+              <PencilIcon size={18} color="#9CA3AF" />
+            </button>
+            <button
+              type="button"
+              onClick={onDelete}
+              className="p-2 active:opacity-70"
+              aria-label="delete answer"
+            >
+              <TrashIcon size={18} color="#EF4444" />
+            </button>
+          </div>
         )}
       </div>
 
@@ -306,7 +318,7 @@ const FeedCard = ({
           <ReactionButton
             key={reaction.type}
             icon={reaction.icon}
-            count={reaction.count}
+            count={reaction.count || 0}
             onPress={() => onReaction(reaction.type)}
           />
         ))}
@@ -424,9 +436,7 @@ export default function ReplyDetailPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [questionContent, setQuestionContent] = useState<string>('');
-  const [questionAssignments, setQuestionAssignments] = useState<
-    QuestionAssignment[]
-  >([]);
+
   const [questionSentAt, setQuestionSentAt] = useState<string | null>(null);
 
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -474,7 +484,6 @@ export default function ReplyDetailPage() {
 
       const assignments =
         questionData.questionDetails?.questionAssignments || [];
-      setQuestionAssignments(assignments);
 
       if (assignments.length > 0 && (assignments as any)[0]?.sentAt) {
         setQuestionSentAt((assignments as any)[0].sentAt);
@@ -503,13 +512,6 @@ export default function ReplyDetailPage() {
     fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [questionInstanceId]);
-
-  const getQuestionAssignmentIdForAnswer = (answer: Answer): string | null => {
-    const assignment = questionAssignments.find(
-      (qa) => qa.member?.id === answer.memberId,
-    );
-    return assignment?.id || null;
-  };
 
   const handleEditAnswer = (answer: Answer) => {
     setEditingAnswer(answer);
@@ -580,7 +582,7 @@ export default function ReplyDetailPage() {
           console.error('[답변 삭제 에러]', e);
           openModal({ content: e?.message || '답변 삭제에 실패했습니다.' });
         }
-      }
+      },
     });
   };
 
@@ -690,7 +692,8 @@ export default function ReplyDetailPage() {
 
           await deleteComment(comment.id);
 
-          const questionData = await getQuestionInstanceDetails(questionInstanceId);
+          const questionData =
+            await getQuestionInstanceDetails(questionInstanceId);
           const commentList = questionData.questionDetails?.comments || [];
           setComments(commentList as Comment[]);
 
@@ -699,7 +702,7 @@ export default function ReplyDetailPage() {
           console.error('[댓글 삭제 에러]', e);
           openModal({ content: e?.message || '댓글 삭제에 실패했습니다.' });
         }
-      }
+      },
     });
   };
 
@@ -810,6 +813,7 @@ export default function ReplyDetailPage() {
                       answer={answer}
                       isMyAnswer={isMyAnswer}
                       onEdit={() => handleEditAnswer(answer)}
+                      onDelete={() => handleDeleteAnswer(answer)}
                       onReaction={(type) => handleReaction(answer, type)}
                     />
                   );
