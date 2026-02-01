@@ -520,10 +520,9 @@ export default function ReplyDetailPage() {
       return;
     }
 
-    const questionAssignmentIdForAnswer =
-      getQuestionAssignmentIdForAnswer(editingAnswer);
-    if (!questionAssignmentIdForAnswer) {
-      alert('질문 할당 정보를 찾을 수 없습니다.');
+    // questionInstanceId is the memberQuestionId for this page context
+    if (!questionInstanceId) {
+      alert('질문 정보를 찾을 수 없습니다.');
       return;
     }
 
@@ -533,7 +532,7 @@ export default function ReplyDetailPage() {
 
       await updateAnswer({
         answerId: editingAnswer.answerId,
-        questionAssignmentId: questionAssignmentIdForAnswer,
+        questionAssignmentId: questionInstanceId,
         answerType: 'TEXT',
         content: editText.trim(),
       });
@@ -553,10 +552,9 @@ export default function ReplyDetailPage() {
     const ok = window.confirm('정말 이 답변을 삭제하시겠어요?');
     if (!ok) return;
 
-    const questionAssignmentIdForAnswer =
-      getQuestionAssignmentIdForAnswer(answer);
-    if (!questionAssignmentIdForAnswer) {
-      alert('질문 할당 정보를 찾을 수 없습니다.');
+    // questionInstanceId is the memberQuestionId for this page context
+    if (!questionInstanceId) {
+      alert('질문 정보를 찾을 수 없습니다.');
       return;
     }
 
@@ -566,7 +564,7 @@ export default function ReplyDetailPage() {
 
       await deleteAnswer({
         answerId: answer.answerId,
-        questionAssignmentId: questionAssignmentIdForAnswer,
+        questionAssignmentId: questionInstanceId,
         answerType: 'TEXT',
         content: '',
       });
@@ -608,12 +606,19 @@ export default function ReplyDetailPage() {
       return;
     }
 
+    if (answers.length === 0) {
+      alert('답변이 없어 댓글을 작성할 수 없습니다.');
+      return;
+    }
+
+    const targetAnswerId = answers[0].id;
+
     try {
       const token = await getItem('accessToken');
       if (token) setAccessToken(token);
 
       await createComment({
-        questionInstanceId,
+        answerId: targetAnswerId,
         content: newCommentText.trim(),
         parentCommentId: replyingToComment?.id,
       });

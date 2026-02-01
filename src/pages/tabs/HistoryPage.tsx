@@ -23,6 +23,13 @@ export default function HistoryPage() {
 
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
 
+  // Helper to safely get date value for sorting
+  const getDateValue = (dateStr: string | null | undefined): number => {
+    if (!dateStr) return 0;
+    const date = new Date(dateStr);
+    return isNaN(date.getTime()) ? 0 : date.getTime();
+  };
+
   const fetchQuestions = useCallback(async () => {
     try {
       setLoading(true);
@@ -36,8 +43,8 @@ export default function HistoryPage() {
 
       // Sort questions
       const sortedQuestions = [...fetchedQuestions].sort((a, b) => {
-        const dateA = new Date(a.sentAt || a.dueAt || '').getTime();
-        const dateB = new Date(b.sentAt || b.dueAt || '').getTime();
+        const dateA = getDateValue(a.sentAt || a.dueAt);
+        const dateB = getDateValue(b.sentAt || b.dueAt);
         return sortOrder === 'newest' ? dateB - dateA : dateA - dateB;
       });
 
@@ -54,8 +61,8 @@ export default function HistoryPage() {
   useEffect(() => {
     if (questions.length > 0) {
       const sorted = [...questions].sort((a, b) => {
-        const dateA = new Date(a.sentAt || a.dueAt || '').getTime();
-        const dateB = new Date(b.sentAt || b.dueAt || '').getTime();
+        const dateA = getDateValue(a.sentAt || a.dueAt);
+        const dateB = getDateValue(b.sentAt || b.dueAt);
         return sortOrder === 'newest' ? dateB - dateA : dateA - dateB;
       });
       // Only update if order actually changed to avoid infinite loop

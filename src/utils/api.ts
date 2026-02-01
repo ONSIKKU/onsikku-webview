@@ -1,4 +1,5 @@
 import { getItem, removeItem, setItem } from "./AsyncStorage";
+
 export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
 const DEFAULT_BASE_URL =
@@ -104,6 +105,8 @@ export type FamilyRole =
   | "GRANDMOTHER"
   | "GRANDFATHER";
 
+export type ApiFamilyRole = FamilyRole;
+
 export type Role = "MEMBER" | "ADMIN";
 
 // Helper Functions for Deriving Info from Role
@@ -198,9 +201,6 @@ export async function getMyPage() {
 }
 
 export async function patchMyPage(payload: AppMypagePatch) {
-  // Payload now directly matches what API expects mostly (except camelCase check)
-  // API spec for patch: `familyRole` is the enum string.
-  
   const apiPayload: any = {};
   if (payload.birthDate !== undefined) apiPayload.birthDate = payload.birthDate;
   if (payload.profileImageUrl !== undefined) apiPayload.profileImageUrl = payload.profileImageUrl;
@@ -304,7 +304,7 @@ export type QuestionState =
   | "FAILED";
 
 export type QuestionAssignment = {
-  id: string; // memberQuestionId in API? No, API returns QuestionDetails with memberQuestionId
+  id: string; // memberQuestionId
   member: Member;
   dueAt: string;
   sentAt: string | null;
@@ -321,10 +321,14 @@ export type ApiQuestionDetails = {
   memberQuestionId: string;
   content: string;
   member: ApiMember;
-  answer?: any; // ApiAnswer
+  answer?: any; 
   comments?: any[];
-  createdAt: string; // Added to fix NaN date issue
-  // ... counts
+  sentDate?: string; 
+  likeCount?: number;
+  angryCount?: number;
+  sadCount?: number;
+  funnyCount?: number;
+  questionStatus?: QuestionState;
 };
 
 export type ApiQuestionResponse = {
@@ -344,13 +348,141 @@ export type QuestionResponse = {
   familyMembers: Member[];
 };
 
-// ... (getTodayQuestions implementation remains)
+export type Answer = {
+  id: string;
+  answerId: string;
+  member: Member;
+  memberId?: string;
+  content: any;
+  createdAt: string;
+  updatedAt: string;
+  answerType: string;
+  questionContent?: string;
+  questionInstanceId?: string;
+  familyRole?: FamilyRole;
+  gender?: "MALE" | "FEMALE";
+  likeReactionCount?: number;
+  angryReactionCount?: number;
+  sadReactionCount?: number;
+  funnyReactionCount?: number;
+};
 
-// ... (Answer types, etc)
+export type Comment = {
+  id: string;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+  member?: Member;
+  familyRole?: FamilyRole;
+  gender?: "MALE" | "FEMALE";
+  parent?: Comment;
+  parentId?: string;
+};
+
+export type AnswerRequest = {
+    answerId?: string;
+    memberQuestionId?: string; // API spec
+    questionAssignmentId?: string; // UI alias
+    answerType?: "TEXT" | "IMAGE" | "AUDIO" | "VIDEO" | "FILE" | "MIXED";
+    content: any;
+    reactionType?: "LIKE" | "ANGRY" | "SAD" | "FUNNY";
+};
+
+export async function getTodayQuestions() {
+  const res = await apiFetch<ApiQuestionResponse>("/api/questions", {
+    method: "GET",
+  });
+
+  let rawAssignments = res.questionDetailsList || [];
+  if (rawAssignments.length === 0 && res.questionDetails) {
+    rawAssignments = [res.questionDetails];
+  }
+
+  const assignments: QuestionAssignment[] = rawAssignments.map(qd => {
+     return {
+        id: qd.memberQuestionId,
+        member: convertToAppMember(qd.member),
+        state: qd.questionStatus || (qd.answer ? 'ANSWERED' : 'SENT'),
+        dueAt: '', 
+        sentAt: qd.sentDate || null,
+        readAt: null,
+        answeredAt: qd.answer ? qd.answer.createdAt : null,
+        expiredAt: null,
+        reminderCount: 0,
+        lastRemindedAt: null
+     };
+  });
+  
+  const firstDetail = res.questionDetailsList?.[0] || res.questionDetails;
+
+  return {
+    questionDetails: firstDetail ? {
+        questionContent: firstDetail.content,
+        questionInstanceId: firstDetail.memberQuestionId, 
+        questionAssignments: assignments
+    } : null,
+    familyMembers: (res.familyMembers || []).map(convertToAppMember)
+  };
+}
+
+export async function getQuestionInstanceDetails(memberQuestionId: string) {
+  const res = await apiFetch<ApiQuestionResponse>(`/api/questions/${memberQuestionId}`, {
+    method: "GET",
+  });
+
+  const rawDetails = res.questionDetails;
+  
+  if (!rawDetails) {
+    return { questionDetails: null };
+  }
+
+  const answer: Answer | undefined = rawDetails.answer ? {
+      ...rawDetails.answer,
+      id: rawDetails.answer.id,
+      answerId: rawDetails.answer.id,
+      member: convertToAppMember(rawDetails.member),
+      memberId: rawDetails.member.id,
+      likeReactionCount: rawDetails.likeCount || 0,
+      angryReactionCount: rawDetails.angryCount || 0,
+      sadReactionCount: rawDetails.sadCount || 0,
+      funnyReactionCount: rawDetails.funnyCount || 0,
+  } : undefined;
+
+  const comments: Comment[] = (rawDetails.comments || []).map((c: any) => ({
+      id: c.id,
+      content: c.content,
+      createdAt: c.createdAt,
+      updatedAt: c.updatedAt,
+      member: c.member ? convertToAppMember(c.member) : undefined,
+      parent: c.parentComment ? { id: c.parentComment.id } as Comment : undefined,
+  }));
+
+  return {
+    questionDetails: {
+        questionContent: rawDetails.content,
+        questionInstanceId: rawDetails.memberQuestionId,
+        questionAssignments: [],
+        answers: answer ? [answer] : [],
+        comments: comments
+    }
+  };
+}
+
+export async function createAnswer(payload: AnswerRequest) {
+    return apiFetch<any>("/api/questions/answers", {
+        method: "POST",
+        body: JSON.stringify({
+            memberQuestionId: payload.memberQuestionId || payload.questionAssignmentId,
+            answerType: payload.answerType || "TEXT",
+            content: typeof payload.content === 'string' ? { text: payload.content } : payload.content
+        })
+    });
+}
 
 // QuestionDetails 타입 (UI용, HistoryPage 등에서 사용)
 export type QuestionDetails = {
   questionInstanceId: string;
+  questionAssignmentId: string;
   questionContent: string;
   sentAt: string | null;
   dueAt: string | null;
@@ -373,17 +505,21 @@ export async function getQuestionsByMonth(year: number, month: number) {
     }
   );
 
-  // Convert ApiQuestionResponse to UI-friendly QuestionDetails[]
-  const details: QuestionDetails[] = (res.questionDetailsList || []).map((qd) => {
+  let rawDetailsList = res.questionDetailsList || [];
+  if (rawDetailsList.length === 0 && res.questionDetails) {
+    rawDetailsList = [res.questionDetails];
+  }
+
+  const details: QuestionDetails[] = rawDetailsList.map((qd) => {
       const { familyRole, gender } = convertToAppMember(qd.member);
       return {
           questionInstanceId: qd.memberQuestionId,
+          questionAssignmentId: qd.memberQuestionId,
           questionContent: qd.content,
-          // Use answer timestamp if available, otherwise question creation timestamp
-          sentAt: qd.createdAt || (qd.answer ? qd.answer.createdAt : null), 
+          sentAt: qd.sentDate || (qd.answer ? qd.answer.createdAt : null), 
           dueAt: null,
           answeredAt: qd.answer ? qd.answer.createdAt : null,
-          state: qd.answer ? "ANSWERED" : "SENT",
+          state: qd.questionStatus || (qd.answer ? "ANSWERED" : "SENT"),
           familyRole,
           gender
       };
@@ -394,16 +530,10 @@ export async function getQuestionsByMonth(year: number, month: number) {
   };
 }
 
-// 최근 답변 조회 (최근 N개월의 질문에서 답변된 것들만)
 export async function getRecentAnswers(months: number = 1, limit: number = 10) {
-    // This requires complex logic mapping or a dedicated API.
-    // For now, return empty to avoid crashes.
-    return [];
+    return [] as Answer[];
 }
 
-
-// ... Rest of the functions (addReaction, comments, etc) need similar updates
-// but for brevity and focusing on Signup, leaving them as is or simplified.
 
 export async function addReaction(payload: {
   answerId: string;
@@ -416,7 +546,7 @@ export async function addReaction(payload: {
         type: payload.reactionType
     }),
   });
-  return {} as Answer; // Dummy return
+  return {} as Answer; 
 }
 
 // Notification types
@@ -436,12 +566,11 @@ export type NotificationItem = {
   sender?: {
     id: string;
     familyRole: ApiFamilyRole;
-    gender: "MALE" | "FEMALE"; // API might not have gender in sender, need to check
+    gender: "MALE" | "FEMALE"; 
   };
 };
 
 export async function getNotifications() {
-    // Assuming API structure
   const response = await apiFetch<NotificationItem[]>("/api/notifications", {
     method: "GET",
   });
@@ -449,9 +578,14 @@ export async function getNotifications() {
 }
 
 export async function createComment(payload: any) {
+    const body = { ...payload };
+    if (body.questionInstanceId) {
+        body.memberQuestionId = body.questionInstanceId;
+        delete body.questionInstanceId;
+    }
     return apiFetch<any>("/api/comments", {
         method: "POST",
-        body: JSON.stringify(payload)
+        body: JSON.stringify(body)
     });
 }
 
@@ -469,27 +603,22 @@ export async function deleteComment(commentId: string) {
 }
 
 export async function updateAnswer(payload: AnswerRequest) {
-    // Implementation for update
      return apiFetch<any>("/api/questions/answers", {
         method: "PATCH",
         body: JSON.stringify({
              answerId: payload.answerId,
-             memberQuestionId: payload.questionAssignmentId,
-             content: { text: payload.content } // Assuming text
+             memberQuestionId: payload.memberQuestionId || payload.questionAssignmentId, 
+             content: typeof payload.content === 'string' ? { text: payload.content } : payload.content
         })
     });
 }
 
 export async function deleteAnswer(payload: AnswerRequest) {
-     // Implementation for delete
-     return apiFetch<void>("/api/questions/test/answers", { // Note: using test endpoint per api.md? No, api.md has /api/questions/test/answers for delete? 
-         // Wait, api.md says DELETE /api/questions/test/answers is "테스트용 답변 삭제".
-         // Is there a real delete? Not seen in the truncated api.md paths provided.
-         // Assuming test delete for now or implement if real one exists.
+     return apiFetch<void>("/api/questions/test/answers", { 
          method: "DELETE",
          body: JSON.stringify({
              answerId: payload.answerId,
-             memberQuestionId: payload.questionAssignmentId
+             memberQuestionId: payload.memberQuestionId || payload.questionAssignmentId
          })
      });
 }
