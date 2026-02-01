@@ -4,23 +4,27 @@ import Button from '@/components/Button';
 import SignUpHeader from '@/components/SignUpHeader';
 import type { SignupRole } from '@/features/signup/signupStore';
 import { useSignupStore } from '@/features/signup/signupStore';
-import { User, Baby, Heart } from 'lucide-react';
+import RoleIcon from '@/components/RoleIcon';
+
+import parentImg from '@/assets/images/family/parent.svg';
+import childImg from '@/assets/images/family/child.svg';
+import grandParentImg from '@/assets/images/family/grand-parent.svg';
 
 type RoleItem = {
   role: SignupRole;
   label: string;
   desc: string;
-  Icon: React.ElementType;
+  icon: string;
 };
 
 const ROLE_ITEMS: RoleItem[] = [
-  { role: 'PARENT', label: '부모', desc: '엄마 또는 아빠예요', Icon: User },
-  { role: 'CHILD', label: '자녀', desc: '아들 또는 딸이예요', Icon: Baby },
+  { role: 'PARENT', label: '부모', desc: '엄마 또는 아빠예요', icon: parentImg },
+  { role: 'CHILD', label: '자녀', desc: '아들 또는 딸이예요', icon: childImg },
   {
     role: 'GRANDPARENT',
     label: '조부모',
     desc: '할머니 또는 할아버지예요',
-    Icon: Heart,
+    icon: grandParentImg,
   },
 ];
 
@@ -52,26 +56,19 @@ export default function RolePage() {
           <div className="grid grid-cols-1 gap-4">
             {ROLE_ITEMS.map((r) => {
               const isSelected = role === r.role;
-              const Icon = r.Icon;
               return (
                 <button
                   key={r.role}
                   type="button"
                   onClick={() => setRole(r.role)}
-                  className={`group relative flex items-center gap-4 overflow-hidden rounded-2xl border-2 p-5 text-left transition-all duration-200 active:scale-[0.98] shadow-sm ${
+                  className={`group relative flex items-center gap-4 overflow-hidden rounded-2xl border-2 p-4 text-left transition-all duration-200 active:scale-[0.98] shadow-sm ${
                     isSelected
                       ? 'border-onsikku-dark-orange bg-orange-50 ring-1 ring-onsikku-dark-orange'
                       : 'border-white bg-white shadow-gray-100 hover:border-gray-200 hover:bg-gray-50'
                   }`}
                 >
-                  <div
-                    className={`flex h-12 w-12 items-center justify-center rounded-full transition-colors ${
-                      isSelected
-                        ? 'bg-onsikku-dark-orange text-white'
-                        : 'bg-gray-100 text-gray-400 group-hover:bg-gray-200'
-                    }`}
-                  >
-                    <Icon size={24} strokeWidth={2.5} />
+                  <div className="flex h-16 w-16 items-center justify-center shrink-0">
+                    <RoleIcon icon={r.icon} size={64} />
                   </div>
                   <div>
                     <div

@@ -1,0 +1,22 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="32" cy="32" r="30" fill="#F3E5F5"/>
+
+  <g transform="translate(0, 5) scale(0.7)">
+    <circle cx="32" cy="30" r="12" fill="#FFDCB9"/>
+    <path d="M20 30C20 23.3726 25.3726 18 32 18C38.6274 18 44 23.3726 44 30V32H42V30C42 24.4771 37.5228 20 32 20C26.4771 20 22 24.4771 22 30V32H20V30Z" fill="#BDBDBD"/>
+    <circle cx="27" cy="32" r="4" stroke="#546E7A" stroke-width="2"/>
+    <circle cx="37" cy="32" r="4" stroke="#546E7A" stroke-width="2"/>
+    <line x1="31" y1="32" x2="33" y2="32" stroke="#546E7A" stroke-width="2"/>
+    <path d="M32 44C24 44 18 48 18 54V58H46V54C46 48 40 44 32 44Z" fill="#375582"/>
+    <path d="M32 44L37 50H27L32 44Z" fill="#EDE7F6"/>
+  </g>
+
+  <g transform="translate(18, 5) scale(0.7)">
+    <circle cx="32" cy="18" r="8" fill="#E0E0E0"/>
+    <circle cx="32" cy="30" r="13" fill="#E0E0E0"/>
+    <circle cx="32" cy="32" r="10" fill="#FFDCB9"/>
+    <ellipse cx="27" cy="33" rx="4" ry="3" stroke="#795548" stroke-width="2" fill="#FFFFFF" fill-opacity="0.3"/>
+    <ellipse cx="37" cy="33" rx="4" ry="3" stroke="#795548" stroke-width="2" fill="#FFFFFF" fill-opacity="0.3"/>
+    <path d="M32 45C25 45 20 49 20 54V58H44V54C44 49 39 45 32 45Z" fill="#AB47BC"/>
+  </g>
+</svg>

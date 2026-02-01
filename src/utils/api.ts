@@ -86,8 +86,9 @@ export async function apiFetch<T>(
   const json = text ? JSON.parse(text) : null;
 
   if (!res.ok) {
+    // Prioritize 'errorMessage' from the new ErrorResponse DTO
     const message =
-      (json && (json.message || json.error)) || `HTTP ${res.status}`;
+      (json && (json.errorMessage || json.message || json.error)) || `HTTP ${res.status}`;
     throw new Error(message);
   }
 
@@ -260,9 +261,10 @@ export async function signup(payload: SignupRequest) {
   const text = await res.text();
   const json = text ? JSON.parse(text) : null;
 
-  if (!res.ok) {
+  // HTTP error or Business logic error (code != 200)
+  if (!res.ok || (json && json.code && (json.code < 200 || json.code >= 300))) {
     const message =
-      (json && (json.message || json.error)) || `HTTP ${res.status}`;
+      (json && (json.errorMessage || json.message || json.error)) || `HTTP ${res.status}`;
     throw new Error(message);
   }
 
@@ -291,7 +293,7 @@ export async function refreshToken(refreshToken: string) {
   const json = text ? JSON.parse(text) : null;
 
   if (!res.ok) {
-    throw new Error((json && json.message) || `HTTP ${res.status}`);
+    throw new Error((json && (json.errorMessage || json.message)) || `HTTP ${res.status}`);
   }
 
   return (json && (json.result ?? json)) as AuthResponse;

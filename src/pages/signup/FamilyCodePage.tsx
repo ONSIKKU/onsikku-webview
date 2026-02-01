@@ -134,7 +134,8 @@ export default function FamilyCodePage() {
               <label className="block text-sm font-bold text-gray-900 ml-1">초대코드 입력</label>
               <input
                 value={familyInvitationCode}
-                onChange={(e) => setFamilyInvitationCode(e.target.value)}
+                onChange={(e) => setFamilyInvitationCode(e.target.value.slice(0, 8))}
+                maxLength={8}
                 placeholder="전달받은 8자리 코드"
                 className="w-full rounded-2xl border-2 border-gray-100 bg-gray-50 px-5 py-4 text-lg font-medium shadow-sm outline-none transition-all focus:border-onsikku-dark-orange focus:bg-white focus:ring-1 focus:ring-onsikku-dark-orange placeholder:text-gray-400"
               />
