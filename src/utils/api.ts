@@ -78,7 +78,7 @@ export async function apiFetch<T>(
       setAccessToken(null);
       await removeItem("accessToken");
       await removeItem("refreshToken");
-      console.warn("Session expired but redirect suppressed for testing.");
+      if (onSessionExpired) onSessionExpired();
     }
   }
 
@@ -221,7 +221,10 @@ export async function patchMyPage(payload: AppMypagePatch) {
 }
 
 export function deleteMember() {
-  return apiFetch<void>("/api/members/delete", { method: "POST" });
+  return apiFetch<void>("/api/members/delete", { 
+    method: "POST",
+    body: JSON.stringify({})
+  });
 }
 
 // Auth types
@@ -490,6 +493,7 @@ export type QuestionDetails = {
   state: QuestionState;
   familyRole: FamilyRole;
   gender: "MALE" | "FEMALE";
+  answerContent?: string;
 };
 
 // 월별 질문 조회
@@ -512,6 +516,12 @@ export async function getQuestionsByMonth(year: number, month: number) {
 
   const details: QuestionDetails[] = rawDetailsList.map((qd) => {
       const { familyRole, gender } = convertToAppMember(qd.member);
+      let answerContent = undefined;
+      // Extract answer content if available (even if API spec says excluded, schema has it)
+      if (qd.answer && qd.answer.content) {
+          answerContent = typeof qd.answer.content === 'string' ? qd.answer.content : qd.answer.content.text;
+      }
+
       return {
           questionInstanceId: qd.memberQuestionId,
           questionAssignmentId: qd.memberQuestionId,
@@ -521,7 +531,8 @@ export async function getQuestionsByMonth(year: number, month: number) {
           answeredAt: qd.answer ? qd.answer.createdAt : null,
           state: qd.questionStatus || (qd.answer ? "ANSWERED" : "SENT"),
           familyRole,
-          gender
+          gender,
+          answerContent
       };
   });
 
@@ -530,8 +541,71 @@ export async function getQuestionsByMonth(year: number, month: number) {
   };
 }
 
-export async function getRecentAnswers(months: number = 1, limit: number = 10) {
-    return [] as Answer[];
+export async function getRecentAnswers(limit: number = 5) {
+    const now = new Date();
+    let year = now.getFullYear();
+    let month = now.getMonth() + 1;
+    
+    let allAnswers: QuestionDetails[] = [];
+    
+    // 1. Fetch current month
+    try {
+        let res = await getQuestionsByMonth(year, month);
+        let answered = res.questionDetails.filter(q => q.state === 'ANSWERED');
+        allAnswers = [...answered];
+
+        // 2. If not enough, fetch previous month
+        if (allAnswers.length < limit) {
+            if (month === 1) {
+                year -= 1;
+                month = 12;
+            } else {
+                month -= 1;
+            }
+            res = await getQuestionsByMonth(year, month);
+            answered = res.questionDetails.filter(q => q.state === 'ANSWERED');
+            allAnswers = [...allAnswers, ...answered];
+        }
+    } catch (e) {
+        console.error("Failed to fetch recent answers via monthly API", e);
+        return [];
+    }
+
+    // 3. Sort by answeredAt desc (newest first)
+    allAnswers.sort((a, b) => {
+        const tA = a.answeredAt ? new Date(a.answeredAt).getTime() : 0;
+        const tB = b.answeredAt ? new Date(b.answeredAt).getTime() : 0;
+        return tB - tA;
+    });
+
+    // 4. Take top N
+    const top = allAnswers.slice(0, limit);
+
+    // 5. Map to Answer type expected by UI
+    return top.map(q => ({
+        id: q.questionInstanceId,
+        answerId: q.questionInstanceId, 
+        content: q.answerContent || "내용을 불러올 수 없습니다.", // Fallback if API excluded it
+        createdAt: q.answeredAt || new Date().toISOString(),
+        updatedAt: q.answeredAt || new Date().toISOString(),
+        answerType: 'TEXT',
+        questionContent: q.questionContent,
+        questionInstanceId: q.questionInstanceId,
+        familyRole: q.familyRole,
+        gender: q.gender,
+        member: {
+            familyRole: q.familyRole,
+            gender: q.gender,
+            // Mock required fields
+            id: 'unknown',
+            role: 'MEMBER',
+            birthDate: '2000-01-01',
+            profileImageUrl: '',
+            alarmEnabled: false,
+            createdAt: '',
+            updatedAt: ''
+        } as Member
+    } as Answer));
 }
 
 

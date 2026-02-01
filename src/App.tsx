@@ -23,22 +23,35 @@ import RequireAuth from '@/routes/RequireAuth';
 import { setOnSessionExpired } from '@/utils/api';
 import { useEffect } from 'react';
 
+import GlobalModal from '@/components/GlobalModal';
+import { useModalStore } from '@/features/modal/modalStore';
+
 // ✅ 추가
 import ReplyPage from '@/pages/reply/ReplyPage';
 import ReplyDetailPage from '@/pages/reply/ReplyDetailPage';
 
 function SessionBridge() {
   const navigate = useNavigate();
+  const { openModal } = useModalStore();
+
   useEffect(() => {
-    setOnSessionExpired(() => navigate('/', { replace: true }));
+    setOnSessionExpired(() => {
+      openModal({
+        type: 'alert',
+        title: '세션 만료',
+        content: '세션이 만료되었습니다.\n다시 로그인해주세요.',
+        onConfirm: () => navigate('/', { replace: true }),
+      });
+    });
     return () => setOnSessionExpired(null);
-  }, [navigate]);
+  }, [navigate, openModal]);
   return null;
 }
 
 export default function App() {
   return (
     <BrowserRouter>
+      <GlobalModal />
       <SessionBridge />
       <Routes>
         <Route path="/" element={<LandingPage />} />

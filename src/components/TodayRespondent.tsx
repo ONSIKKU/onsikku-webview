@@ -19,25 +19,26 @@ export default function TodayRespondent({
         오늘의 주인공
       </div>
 
-      <div className="flex flex-row justify-around items-start mb-4 gap-2 flex-wrap">
+      <div className="flex flex-row justify-around items-start mb-2 gap-1 flex-wrap">
         {members.map((member) => {
           const assignment = assignments.find((a) => a.member.id === member.id);
           const isAnswered = assignment?.state === 'ANSWERED';
           const isAssigned = !!assignment;
           const isMe = member.id === currentUserId;
-          const { icon, text } = getRoleIconAndText(
+          const { icon, text, color } = getRoleIconAndText(
             member.familyRole,
             member.gender,
           );
 
           return (
-            <div key={member.id} className="items-center w-[22%] mb-2 flex">
+            <div key={member.id} className="flex flex-col items-center min-w-[72px] mb-4 px-1">
               <RoleCard
                 icon={icon}
                 roleName={`${text}${isMe ? ' (나)' : ''}`}
                 isSelected={!!isAnswered}
                 isPending={isAssigned && !isAnswered}
                 isProtagonist={isAssigned}
+                color={color}
               />
             </div>
           );

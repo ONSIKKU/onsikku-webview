@@ -4,9 +4,11 @@ import { getItem } from '@/utils/AsyncStorage';
 import { getMyPage, patchMyPage, setAccessToken } from '@/utils/api';
 import { familyRoleToKo, genderToKo, getApiFamilyRole } from '@/utils/labels';
 import { IoArrowBack, IoCalendarOutline } from 'react-icons/io5';
+import { useModalStore } from '@/features/modal/modalStore';
 
 export default function MyPageEdit() {
   const navigate = useNavigate();
+  const { openModal } = useModalStore();
 
   const [loading, setLoading] = useState<boolean>(true);
   const [saving, setSaving] = useState<boolean>(false);
@@ -20,7 +22,8 @@ export default function MyPageEdit() {
   >('');
   const [nickname, setNickname] = useState<string>('');
   const [isAlarmEnabled, setIsAlarmEnabled] = useState<boolean>(true);
-  const [isFamilyInviteEnabled, setIsFamilyInviteEnabled] = useState<boolean>(true);
+  const [isFamilyInviteEnabled, setIsFamilyInviteEnabled] =
+    useState<boolean>(true);
 
   // Date Picker State
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -38,13 +41,15 @@ export default function MyPageEdit() {
         const res = await getMyPage();
         setGender((res.member.gender as any) || '');
         setBirthDate(res.member.birthDate || '');
-        
+
         // Map API specific role back to Category for UI
         const role = res.member.familyRole;
         if (role === 'FATHER' || role === 'MOTHER') setRoleCategory('PARENT');
-        else if (role === 'SON' || role === 'DAUGHTER') setRoleCategory('CHILD');
-        else if (role === 'GRANDFATHER' || role === 'GRANDMOTHER') setRoleCategory('GRANDPARENT');
-        
+        else if (role === 'SON' || role === 'DAUGHTER')
+          setRoleCategory('CHILD');
+        else if (role === 'GRANDFATHER' || role === 'GRANDMOTHER')
+          setRoleCategory('GRANDPARENT');
+
         setNickname(res.member.nickname || '');
         setIsAlarmEnabled(res.member.alarmEnabled ?? true);
         setIsFamilyInviteEnabled(res.family.familyInviteEnabled ?? true);
@@ -62,15 +67,15 @@ export default function MyPageEdit() {
       setSaving(true);
 
       if (!birthDate) {
-        alert('생년월일을 선택해 주세요');
+        openModal({ content: '생년월일을 선택해 주세요' });
         setSaving(false);
         return;
       }
 
       if (!gender || !roleCategory) {
-         alert('성별과 역할을 선택해 주세요');
-         setSaving(false);
-         return;
+        openModal({ content: '성별과 역할을 선택해 주세요' });
+        setSaving(false);
+        return;
       }
 
       const apiRole = getApiFamilyRole(roleCategory, gender);
@@ -84,10 +89,10 @@ export default function MyPageEdit() {
         isFamilyInviteEnabled,
       });
 
-      alert('프로필이 수정되었습니다');
+      openModal({ content: '프로필이 수정되었습니다.' });
       navigate(-1);
     } catch (e: any) {
-      alert(e?.message || '수정에 실패했습니다');
+      openModal({ content: e?.message || '수정에 실패했습니다' });
     } finally {
       setSaving(false);
     }
@@ -165,7 +170,9 @@ export default function MyPageEdit() {
         <div className="px-6 pb-10 space-y-6">
           {/* Nickname Section */}
           <div className="bg-white p-6 rounded-3xl shadow-sm flex flex-col gap-4">
-            <p className="font-sans text-base font-bold text-gray-800">닉네임</p>
+            <p className="font-sans text-base font-bold text-gray-800">
+              닉네임
+            </p>
             <input
               type="text"
               value={nickname}
@@ -276,8 +283,12 @@ export default function MyPageEdit() {
           <div className="bg-white p-6 rounded-3xl shadow-sm flex flex-col gap-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="font-sans text-base font-bold text-gray-800">알림 설정</p>
-                <p className="text-xs text-gray-500 mt-1">질문 도착 및 답변 알림을 받습니다</p>
+                <p className="font-sans text-base font-bold text-gray-800">
+                  알림 설정
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  질문 도착 및 답변 알림을 받습니다
+                </p>
               </div>
               <button
                 type="button"
@@ -296,14 +307,20 @@ export default function MyPageEdit() {
 
             <div className="flex items-center justify-between border-t border-gray-100 pt-6">
               <div>
-                <p className="font-sans text-base font-bold text-gray-800">가족 초대 허용</p>
-                <p className="text-xs text-gray-500 mt-1">새로운 가족 멤버 초대를 허용합니다</p>
+                <p className="font-sans text-base font-bold text-gray-800">
+                  가족 초대 허용
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  새로운 가족 멤버 초대를 허용합니다
+                </p>
               </div>
               <button
                 type="button"
                 onClick={() => setIsFamilyInviteEnabled(!isFamilyInviteEnabled)}
                 className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${
-                  isFamilyInviteEnabled ? 'bg-onsikku-dark-orange' : 'bg-gray-200'
+                  isFamilyInviteEnabled
+                    ? 'bg-onsikku-dark-orange'
+                    : 'bg-gray-200'
                 }`}
               >
                 <span
@@ -314,10 +331,6 @@ export default function MyPageEdit() {
               </button>
             </div>
           </div>
-
-          {error ? (
-            <p className="font-sans text-red-500 text-center">{error}</p>
-          ) : null}
 
           {/* Save Button */}
           <button

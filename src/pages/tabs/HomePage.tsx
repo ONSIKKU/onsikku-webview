@@ -5,10 +5,8 @@ import type {
   Answer,
   Member,
   QuestionAssignment,
-  QuestionResponse,
 } from '@/utils/api';
 import {
-  apiFetch,
   getMyPage,
   getRecentAnswers,
   setAccessToken,
@@ -16,8 +14,9 @@ import {
 } from '@/utils/api';
 import { getItem } from '@/utils/AsyncStorage';
 import { getRoleIconAndText } from '@/utils/labels';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { IoRefreshOutline } from 'react-icons/io5';
 
 export default function HomePage() {
   const navigate = useNavigate();
@@ -38,16 +37,19 @@ export default function HomePage() {
     null,
   );
 
+  // Pull to Refresh State
+  const [startY, setStartY] = useState(0);
+  const [pullY, setPullY] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
   const fetchTodayQuestions = useCallback(async () => {
     try {
-      setLoading(true);
-      setError('');
+      // Don't set global loading on refresh, just handle data update
+      if (!refreshing) setError('');
 
       const token = await getItem('accessToken');
       if (!token) {
-        // 토큰이 없으면 로그인 페이지로 이동하거나 에러 처리
-        // 여기서는 에러 메시지만 설정
-        // setError('로그인이 필요합니다');
         setQuestions([]);
         setFamilyMembers([]);
         setQuestionContent('');
@@ -59,7 +61,6 @@ export default function HomePage() {
       
       const { questionDetails, familyMembers } = await getTodayQuestions();
 
-      // questionDetails can be undefined/null if no question
       const assignments = questionDetails?.questionAssignments || [];
 
       setQuestions(assignments);
@@ -71,30 +72,28 @@ export default function HomePage() {
       }
     } catch (e: any) {
       console.error('[오늘의 질문 조회 에러]', e);
-      // 404 등 질문이 없는 경우에 대한 처리도 필요할 수 있음
-      setError(e?.message || '질문을 불러오지 못했습니다');
-    } finally {
-      setLoading(false);
+      // Only show error if not existing data or if explicit error handling needed
+      if (!questions.length) setError(e?.message || '질문을 불러오지 못했습니다');
     }
-  }, []);
+  }, [refreshing, questions.length]);
 
   const fetchRecentAnswers = useCallback(async () => {
     try {
-      setLoadingAnswers(true);
+      if (!refreshing) setLoadingAnswers(true);
 
       const token = await getItem('accessToken');
       if (token) {
         setAccessToken(token);
-        const answers = await getRecentAnswers(3, 10); // 최근 3개월, 10개
+        const answers = await getRecentAnswers(3, 10);
         setRecentAnswers(answers);
       }
     } catch (e) {
       console.error('[최근 답변 조회 에러]', e);
       setRecentAnswers([]);
     } finally {
-      setLoadingAnswers(false);
+      if (!refreshing) setLoadingAnswers(false);
     }
-  }, []);
+  }, [refreshing]);
 
   const fetchCurrentUser = useCallback(async () => {
     try {
@@ -113,11 +112,63 @@ export default function HomePage() {
     }
   }, []);
 
-  useEffect(() => {
-    fetchCurrentUser();
-    fetchTodayQuestions();
-    fetchRecentAnswers();
+  const handleRefresh = useCallback(async () => {
+    await Promise.all([
+      fetchCurrentUser(),
+      fetchTodayQuestions(),
+      fetchRecentAnswers()
+    ]);
   }, [fetchCurrentUser, fetchTodayQuestions, fetchRecentAnswers]);
+
+  // Initial Load
+  useEffect(() => {
+    const init = async () => {
+      setLoading(true);
+      await handleRefresh();
+      setLoading(false);
+    };
+    init();
+  }, []); // Run once on mount
+
+  // Pull to Refresh Handlers
+  const onTouchStart = (e: React.TouchEvent) => {
+    if (window.scrollY === 0) {
+      setStartY(e.touches[0].clientY);
+    }
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    if (startY === 0 || refreshing) return;
+    const currentY = e.touches[0].clientY;
+    const diff = currentY - startY;
+
+    if (diff > 0 && window.scrollY <= 0) {
+      // Prevent default pull-to-refresh behavior in some browsers if needed, 
+      // but usually purely visual here
+      setPullY(Math.min(diff * 0.4, 100)); // Dampening
+    } else {
+      setPullY(0);
+    }
+  };
+
+  const onTouchEnd = async () => {
+    if (refreshing) return;
+    
+    if (pullY > 50) {
+      setRefreshing(true);
+      setPullY(60); // Snap to loading state
+      try {
+        await handleRefresh();
+      } finally {
+        setRefreshing(false);
+        setPullY(0);
+        setStartY(0);
+      }
+    } else {
+      setPullY(0);
+      setStartY(0);
+    }
+  };
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -191,19 +242,9 @@ export default function HomePage() {
 
   if (loading) {
     return (
-      <div className="-mx-4 -mt-4 min-h-screen bg-orange-50 flex flex-col items-center justify-center gap-6 px-4">
+      <div className="min-h-screen bg-orange-50 flex flex-col items-center justify-center gap-6 px-4">
         <div className="h-12 w-12 animate-spin rounded-full border-4 border-orange-200 border-t-onsikku-dark-orange" />
         <p className="font-sans text-gray-600 text-base">질문을 불러오는 중...</p>
-      </div>
-    );
-  }
-
-  // 에러가 있어도 질문이 없으면 빈 화면 표시 (혹은 에러 메시지)
-  // 여기서는 질문 목록이 비어있고 에러가 있으면 에러 표시
-  if (error && questions.length === 0) {
-    return (
-      <div className="-mx-4 -mt-4 min-h-screen bg-orange-50 flex items-center justify-center px-4">
-        <p className="font-sans text-red-500 text-center text-base">{error}</p>
       </div>
     );
   }
@@ -213,11 +254,35 @@ export default function HomePage() {
     '가족';
 
   return (
-    <div className="-mx-4 -mt-4 min-h-screen bg-orange-50">
-      <div className="mx-auto w-full max-w-md px-5 pb-10 pt-3">
+    <div 
+      className="min-h-screen bg-orange-50 pb-10 overflow-hidden relative"
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+      ref={containerRef}
+    >
+      {/* Pull to Refresh Indicator */}
+      <div 
+        className="absolute top-0 left-0 right-0 flex justify-center items-center pointer-events-none"
+        style={{ 
+          height: '60px', 
+          transform: `translateY(${pullY - 60}px)`,
+          opacity: pullY > 10 ? 1 : 0,
+          transition: refreshing ? 'transform 0.2s ease' : 'transform 0s'
+        }}
+      >
+        <div className={`p-2 rounded-full bg-white shadow-md ${refreshing ? 'animate-spin' : ''}`}>
+          <IoRefreshOutline size={24} className="text-onsikku-dark-orange" style={{ transform: `rotate(${pullY * 2}deg)` }} />
+        </div>
+      </div>
+
+      <div 
+        className="mx-auto w-full px-5 pt-8 transition-transform duration-200"
+        style={{ transform: `translateY(${pullY}px)` }}
+      >
         {/* Header Section */}
-        <div className="mb-6 mt-2">
-          <p className="font-sans text-gray-500 font-medium text-base mb-1 ml-1">
+        <div className="mb-8">
+          <p className="font-sans text-gray-500 font-medium text-sm mb-1 ml-1">
             {new Date().toLocaleDateString('ko-KR', {
               month: 'long',
               day: 'numeric',
@@ -225,11 +290,11 @@ export default function HomePage() {
             })}
           </p>
           <h1 className="font-sans text-2xl font-bold text-gray-900 ml-1">
-            반가워요, {greetingRoleText}님! 👋
+            반가워요, <span className="text-onsikku-dark-orange">{greetingRoleText}</span>님! 👋
           </h1>
         </div>
 
-        <div className="gap-6 flex flex-col">
+        <div className="flex flex-col gap-6">
           {!isQuestionEmpty && (
             <TodayRespondent
               members={familyMembers}
@@ -248,8 +313,8 @@ export default function HomePage() {
           />
 
           {/* Recent Answers Section */}
-          <div>
-            <div className="flex flex-row justify-between items-center mb-3 px-1">
+          <div className="mt-2">
+            <div className="flex flex-row justify-between items-center mb-4 px-1">
               <h2 className="font-sans font-bold text-xl text-gray-800">
                 지난 추억들
               </h2>
@@ -263,21 +328,21 @@ export default function HomePage() {
                 </p>
               </div>
             ) : recentAnswersData.length === 0 ? (
-              <div className="w-full flex items-center justify-center py-8">
-                <p className="font-sans text-gray-500 text-base">
-                  아직 답변이 없습니다
+              <div className="w-full flex items-center justify-center py-12 bg-white rounded-3xl shadow-sm">
+                <p className="font-sans text-gray-400 text-base">
+                  아직 작성된 답변이 없습니다
                 </p>
               </div>
             ) : (
               <>
                 <div
                   onScroll={handleCarouselScroll}
-                  className="w-full overflow-x-auto flex snap-x snap-mandatory scroll-smooth"
+                  className="w-full overflow-x-auto flex snap-x snap-mandatory scroll-smooth pb-4 -mb-4 no-scrollbar"
                 >
                   {recentAnswersData.map((item, index) => (
                     <div
                       key={index}
-                      className="w-full flex-shrink-0 snap-start"
+                      className="w-full flex-shrink-0 snap-center px-1"
                     >
                       <RecentAnswers
                         roleName={item.roleName}
@@ -297,14 +362,14 @@ export default function HomePage() {
                   ))}
                 </div>
 
-                <div className="flex-row justify-center items-center gap-2 mt-4 flex">
+                <div className="flex-row justify-center items-center gap-1.5 mt-4 flex">
                   {recentAnswersData.map((_, index) => (
                     <div
                       key={index}
-                      className={`h-2 w-2 rounded-full ${
+                      className={`h-1.5 rounded-full transition-all duration-300 ${
                         activeIndex === index
-                          ? 'bg-onsikku-dark-orange'
-                          : 'bg-orange-200'
+                          ? 'w-4 bg-onsikku-dark-orange'
+                          : 'w-1.5 bg-orange-200'
                       }`}
                     />
                   ))}

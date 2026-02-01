@@ -1,9 +1,12 @@
+import RoleIcon from './RoleIcon';
+
 interface RoleCardProps {
   icon: string;
   roleName: string;
   isSelected: boolean;
   isPending?: boolean;
   isProtagonist?: boolean;
+  color?: string;
 }
 
 function CrownIcon({ size = 14 }: { size?: number }) {
@@ -33,33 +36,42 @@ export default function RoleCard({
   isSelected,
   isPending,
   isProtagonist,
+  color = '#FB923C', // Default orange
 }: RoleCardProps) {
+  // Border logic
+  const hasBorder = isSelected || isPending;
+
   return (
-    <div className="flex-1 flex flex-col justify-start items-center gap-1">
-      <div
-        className={`w-16 h-16 rounded-full flex justify-center items-center box-border relative
-        ${
-          isSelected
-            ? 'bg-orange-100 border-2 border-orange-500'
-            : isPending
-              ? 'bg-white border-2 border-orange-300'
-              : 'bg-gray-100'
-        }
-        `}
-      >
-        <span className="font-sans text-2xl">{icon}</span>
+    <div className="flex flex-col items-center gap-1">
+      <div className="w-16 h-16 relative flex items-center justify-center">
+        {/* Actual Icon */}
+        <RoleIcon icon={icon} size={64} />
+
+        {/* Highlight Ring (Overlaid on top of icon) */}
+        {hasBorder && (
+          <div
+            className="absolute w-[60px] h-[60px] rounded-full pointer-events-none transition-all duration-300"
+            style={{
+              border: `2px solid ${color}`,
+              opacity: isPending ? 0.6 : 1,
+              zIndex: 5,
+            }}
+          />
+        )}
+
+        {/* Protagonist Crown */}
         {isProtagonist && (
-          <div className="absolute -top-2 -right-2 bg-white rounded-full p-1 shadow-sm border border-orange-100">
-            <CrownIcon size={14} />
+          <div className="absolute -top-1 -right-1 bg-white rounded-full p-1 shadow-md border border-orange-100 z-10">
+            <CrownIcon size={16} />
           </div>
         )}
       </div>
+
       <div
-        className={`font-sans text-xs mt-1 ${
-          isSelected || isPending
-            ? 'text-orange-600 font-bold'
-            : 'text-gray-400'
+        className={`font-sans text-[11px] mt-1 text-center whitespace-nowrap transition-colors ${
+          isSelected || isPending ? 'font-bold' : 'text-gray-400 font-medium'
         }`}
+        style={{ color: hasBorder ? color : undefined }}
       >
         {roleName}
       </div>

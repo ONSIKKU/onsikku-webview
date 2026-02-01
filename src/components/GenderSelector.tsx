@@ -5,15 +5,15 @@ type Props = {
 
 export default function GenderSelector({ value, onChange }: Props) {
   const base =
-    "flex-1 rounded-2xl border-2 py-4 text-base font-bold transition-all duration-200 outline-none";
+    "flex-1 rounded-2xl border-2 py-4 text-base font-bold transition-all duration-200 outline-none active:scale-[0.98] shadow-sm";
   
   return (
-    <div className="flex gap-4">
+    <div className="flex gap-3">
       <button
         type="button"
         className={`${base} ${
           value === "MALE"
-            ? "border-onsikku-dark-orange bg-orange-50 text-onsikku-dark-orange ring-1 ring-onsikku-dark-orange"
+            ? "border-onsikku-dark-orange bg-orange-50 text-onsikku-dark-orange ring-1 ring-onsikku-dark-orange shadow-orange-100"
             : "border-gray-100 bg-white text-gray-400 hover:border-gray-200 hover:bg-gray-50"
         }`}
         onClick={() => onChange("MALE")}
@@ -24,7 +24,7 @@ export default function GenderSelector({ value, onChange }: Props) {
         type="button"
         className={`${base} ${
           value === "FEMALE"
-            ? "border-onsikku-dark-orange bg-orange-50 text-onsikku-dark-orange ring-1 ring-onsikku-dark-orange"
+            ? "border-onsikku-dark-orange bg-orange-50 text-onsikku-dark-orange ring-1 ring-onsikku-dark-orange shadow-orange-100"
             : "border-gray-100 bg-white text-gray-400 hover:border-gray-200 hover:bg-gray-50"
         }`}
         onClick={() => onChange("FEMALE")}

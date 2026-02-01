@@ -1,5 +1,12 @@
 import type { FamilyRole } from './api';
 
+import fatherImg from '@/assets/images/family/father.svg';
+import motherImg from '@/assets/images/family/mother.svg';
+import sonImg from '@/assets/images/family/son.svg';
+import daughterImg from '@/assets/images/family/daughter.svg';
+import grandFatherImg from '@/assets/images/family/grand-father.svg';
+import grandMotherImg from '@/assets/images/family/grand-mother.svg';
+
 export const familyRoleToKo = (role: FamilyRole): string => {
   switch (role) {
     case 'FATHER':
@@ -55,28 +62,27 @@ export const roleToKo = (v?: string | null) => {
 // 역할(API Enum)에 따른 아이콘과 텍스트 반환
 export const getRoleIconAndText = (
   role?: FamilyRole | null,
-  // gender is now redundant but kept for optional compat or if needed for other logic
   gender?: string | null,
-): { icon: string; text: string } => {
+): { icon: string; text: string; color: string } => {
   if (!role) {
-    return { icon: '👤', text: '-' };
+    return { icon: '👤', text: '-', color: '#D1D5DB' };
   }
 
   switch (role) {
     case 'FATHER':
-      return { icon: '👨🏻', text: '아빠' };
+      return { icon: fatherImg, text: '아빠', color: '#1E88E5' };
     case 'MOTHER':
-      return { icon: '👩🏻', text: '엄마' };
+      return { icon: motherImg, text: '엄마', color: '#D81B60' };
     case 'SON':
-      return { icon: '👦🏻', text: '아들' };
+      return { icon: sonImg, text: '아들', color: '#43A047' };
     case 'DAUGHTER':
-      return { icon: '👧🏻', text: '딸' };
+      return { icon: daughterImg, text: '딸', color: '#FB8C00' };
     case 'GRANDFATHER':
-      return { icon: '👴🏻', text: '할아버지' };
+      return { icon: grandFatherImg, text: '할아버지', color: '#455A64' };
     case 'GRANDMOTHER':
-      return { icon: '👵🏻', text: '할머니' };
+      return { icon: grandMotherImg, text: '할머니', color: '#8E24AA' };
     default:
-      return { icon: '👤', text: '-' };
+      return { icon: '👤', text: '-', color: '#9CA3AF' };
   }
 };
 

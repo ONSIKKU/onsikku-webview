@@ -1,3 +1,5 @@
+import RoleIcon from './RoleIcon';
+
 interface RecentAnswersProps {
   roleName: string;
   date: string;
@@ -21,8 +23,8 @@ export default function RecentAnswers({
     >
       <div className="flex flex-row items-center justify-between mb-3">
         <div className="flex flex-row items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center">
-            <span className="text-base">{roleIcon}</span>
+          <div className="w-8 h-8 rounded-full flex items-center justify-center overflow-hidden">
+            <RoleIcon icon={roleIcon} size={32} />
           </div>
           <span className="font-medium text-gray-800 text-base">{roleName}</span>
         </div>

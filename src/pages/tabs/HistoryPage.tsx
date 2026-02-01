@@ -5,23 +5,42 @@ import { getQuestionsByMonth, setAccessToken } from '@/utils/api';
 import type { QuestionDetails } from '@/utils/api';
 import { getItem } from '@/utils/AsyncStorage';
 import { useCallback, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { IoArrowDownOutline, IoArrowUpOutline } from 'react-icons/io5';
 
 export default function HistoryPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+  // URL Params as Source of Truth
+  const paramYear = Number(searchParams.get('year'));
+  const paramMonth = Number(searchParams.get('month'));
+
+  const now = new Date();
+  // Default to current date if params missing
+  const selectedYear = paramYear > 0 ? paramYear : now.getFullYear();
+  const selectedMonth = paramMonth > 0 ? paramMonth : now.getMonth() + 1;
+
   const [questions, setQuestions] = useState<QuestionDetails[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const [showDatePicker, setShowDatePicker] = useState(false);
+  // Temp state for modal remains local
   const [tempYear, setTempYear] = useState(selectedYear);
   const [tempMonth, setTempMonth] = useState(selectedMonth);
 
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
+
+  // Ensure URL always has params (for initial load consistency)
+  useEffect(() => {
+    if (!paramYear || !paramMonth) {
+      setSearchParams({
+        year: String(now.getFullYear()),
+        month: String(now.getMonth() + 1),
+      }, { replace: true });
+    }
+  }, [paramYear, paramMonth, setSearchParams]);
 
   // Helper to safely get date value for sorting
   const getDateValue = (dateStr: string | null | undefined): number => {
@@ -65,8 +84,6 @@ export default function HistoryPage() {
         const dateB = getDateValue(b.sentAt || b.dueAt);
         return sortOrder === 'newest' ? dateB - dateA : dateA - dateB;
       });
-      // Only update if order actually changed to avoid infinite loop
-      // Simple check: compare first element IDs
       if (sorted[0]?.questionInstanceId !== questions[0]?.questionInstanceId) {
         setQuestions(sorted);
       }
@@ -77,17 +94,19 @@ export default function HistoryPage() {
     fetchQuestions();
   }, [fetchQuestions]);
 
+  const updateDate = (y: number, m: number) => {
+    setSearchParams({ year: String(y), month: String(m) }, { replace: true });
+  };
+
   const handlePrevMonth = () => {
     if (selectedMonth === 1) {
-      setSelectedYear(selectedYear - 1);
-      setSelectedMonth(12);
+      updateDate(selectedYear - 1, 12);
     } else {
-      setSelectedMonth(selectedMonth - 1);
+      updateDate(selectedYear, selectedMonth - 1);
     }
   };
 
   const handleNextMonth = () => {
-    const now = new Date();
     const maxYear = now.getFullYear();
     const maxMonth = now.getMonth() + 1;
 
@@ -95,14 +114,13 @@ export default function HistoryPage() {
       selectedYear > maxYear ||
       (selectedYear === maxYear && selectedMonth >= maxMonth)
     ) {
-      return; // 미래로 이동 불가
+      return; 
     }
 
     if (selectedMonth === 12) {
-      setSelectedYear(selectedYear + 1);
-      setSelectedMonth(1);
+      updateDate(selectedYear + 1, 1);
     } else {
-      setSelectedMonth(selectedMonth + 1);
+      updateDate(selectedYear, selectedMonth + 1);
     }
   };
 
@@ -134,8 +152,7 @@ export default function HistoryPage() {
   };
 
   const confirmDate = () => {
-    setSelectedYear(tempYear);
-    setSelectedMonth(tempMonth);
+    updateDate(tempYear, tempMonth);
     setShowDatePicker(false);
   };
 
@@ -143,13 +160,11 @@ export default function HistoryPage() {
   const currentYear = currentDate.getFullYear();
   const currentMonth = currentDate.getMonth() + 1;
 
-  // 년도 범위: 2024년부터 현재 년도까지
   const years = Array.from(
     { length: currentYear - 2024 + 1 },
     (_, i) => 2024 + i,
   );
 
-  // 월 범위: 선택된 년도가 현재 년도라면 현재 월까지, 아니면 12월까지
   const maxMonth = tempYear === currentYear ? currentMonth : 12;
   const months = Array.from({ length: maxMonth }, (_, i) => i + 1);
 
@@ -159,8 +174,8 @@ export default function HistoryPage() {
     (selectedYear === currentYear && selectedMonth >= currentMonth);
 
   return (
-    <div className="min-h-screen bg-orange-50">
-      <div className="gap-5 px-5 pb-10">
+    <div className="min-h-screen bg-orange-50 pb-10">
+      <div className="mx-auto w-full px-5 pt-8 flex flex-col gap-6">
         <DateSelector
           selectedYear={selectedYear}
           selectedMonth={selectedMonth}
@@ -178,7 +193,7 @@ export default function HistoryPage() {
         />
 
         <div>
-          <div className="flex flex-row items-center justify-between mb-4">
+          <div className="flex flex-row items-center justify-between mb-4 px-1">
             <div className="font-sans font-bold text-xl text-gray-900">
               지난 질문들
             </div>
@@ -190,14 +205,14 @@ export default function HistoryPage() {
                   prev === 'newest' ? 'oldest' : 'newest',
                 )
               }
-              className="flex flex-row items-center bg-white px-3 py-1.5 rounded-full border border-gray-200 active:opacity-70"
+              className="flex flex-row items-center bg-white px-3 py-1.5 rounded-xl border border-gray-100 shadow-sm active:scale-95 transition-transform"
             >
               {sortOrder === 'newest' ? (
                 <IoArrowDownOutline size={14} className="text-gray-600" />
               ) : (
                 <IoArrowUpOutline size={14} className="text-gray-600" />
               )}
-              <div className="font-sans text-sm font-medium text-gray-600 ml-1">
+              <div className="font-sans text-sm font-medium text-gray-600 ml-1.5">
                 {sortOrder === 'newest' ? '최신순' : '오래된순'}
               </div>
             </button>
@@ -214,24 +229,24 @@ export default function HistoryPage() {
 
       {/* Date Picker Modal */}
       {showDatePicker && (
-        <div className="fixed inset-0 bg-black/50 flex items-end z-50">
-          <div className="bg-white rounded-t-3xl p-6 w-full">
-            <div className="flex flex-row justify-between items-center mb-4 border-b border-gray-100 pb-4">
-              <button type="button" onClick={() => setShowDatePicker(false)}>
-                <div className="text-gray-500 text-base">취소</div>
+        <div className="fixed inset-0 bg-black/50 flex items-end z-[60]">
+          <div className="bg-white rounded-t-[30px] p-6 w-full animate-fade-in-up">
+            <div className="flex flex-row justify-between items-center mb-6 border-b border-gray-100 pb-4">
+              <button type="button" onClick={() => setShowDatePicker(false)} className="active:opacity-70">
+                <div className="text-gray-500 text-base font-medium">취소</div>
               </button>
 
-              <div className="font-bold text-lg text-gray-800">날짜 선택</div>
+              <div className="font-bold text-lg text-gray-900">날짜 선택</div>
 
-              <button type="button" onClick={confirmDate}>
-                <div className="text-orange-500 font-bold text-base">확인</div>
+              <button type="button" onClick={confirmDate} className="active:opacity-70">
+                <div className="text-onsikku-dark-orange font-bold text-base">확인</div>
               </button>
             </div>
 
-            <div className="flex flex-row justify-center items-center gap-4">
+            <div className="flex flex-row justify-center items-center gap-4 mb-4">
               <div className="flex-1">
                 <select
-                  className="w-full border border-gray-200 rounded-xl p-3 text-gray-800"
+                  className="w-full border border-gray-200 rounded-2xl p-4 text-gray-900 text-lg font-medium outline-none focus:border-onsikku-dark-orange transition-colors"
                   value={tempYear}
                   onChange={(e) => {
                     const v = Number(e.target.value);
@@ -251,7 +266,7 @@ export default function HistoryPage() {
 
               <div className="flex-1">
                 <select
-                  className="w-full border border-gray-200 rounded-xl p-3 text-gray-800"
+                  className="w-full border border-gray-200 rounded-2xl p-4 text-gray-900 text-lg font-medium outline-none focus:border-onsikku-dark-orange transition-colors"
                   value={tempMonth}
                   onChange={(e) => setTempMonth(Number(e.target.value))}
                 >
@@ -263,9 +278,8 @@ export default function HistoryPage() {
                 </select>
               </div>
             </div>
-
-            {/* RN Picker의 높이감 유지용 여백(시각만) */}
-            <div style={{ height: 16 }} />
+            
+            <div className="h-6" /> 
           </div>
         </div>
       )}

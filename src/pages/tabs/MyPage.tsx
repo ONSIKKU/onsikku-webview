@@ -23,9 +23,12 @@ import {
   IoCopyOutline,
   IoRefresh,
 } from 'react-icons/io5';
+import RoleIcon from '@/components/RoleIcon';
+import { useModalStore } from '@/features/modal/modalStore';
 
 export default function MyPage() {
   const navigate = useNavigate();
+  const { openModal } = useModalStore();
 
   const [data, setData] = useState<MypageResponse | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -66,35 +69,43 @@ export default function MyPage() {
 
   const regenerateInvitation = async () => {
     if (!data?.family) return;
-    try {
-      setUpdating(true);
-      const isCurrentlyEnabled = data.family.familyInviteEnabled;
+    
+    openModal({
+        type: 'confirm',
+        title: '초대코드 재발급',
+        content: '초대코드를 재발급하시겠습니까?\n기존 코드는 사용할 수 없게 됩니다.',
+        onConfirm: async () => {
+            try {
+              setUpdating(true);
+              const isCurrentlyEnabled = data.family.familyInviteEnabled;
 
-      if (isCurrentlyEnabled) {
-        await patchMyPage({ isFamilyInviteEnabled: false });
-      }
+              if (isCurrentlyEnabled) {
+                await patchMyPage({ isFamilyInviteEnabled: false });
+              }
 
-      const res = await patchMyPage({ isFamilyInviteEnabled: true });
-      setData(res);
-      alert('초대코드가 재발급되었습니다.');
-    } catch (e: any) {
-      alert(e?.message || '초대코드 재발급에 실패했습니다');
-    } finally {
-      setUpdating(false);
-    }
+              const res = await patchMyPage({ isFamilyInviteEnabled: true });
+              setData(res);
+              openModal({ content: '초대코드가 재발급되었습니다.' });
+            } catch (e: any) {
+              openModal({ content: e?.message || '초대코드 재발급에 실패했습니다' });
+            } finally {
+              setUpdating(false);
+            }
+        }
+    });
   };
 
   const copyInvitationCode = async () => {
     const code = data?.family?.invitationCode;
     if (!code) {
-      alert('초대코드가 없습니다.');
+      openModal({ content: '초대코드가 없습니다.' });
       return;
     }
     try {
       await navigator.clipboard.writeText(code);
-      alert('초대코드가 클립보드에 복사되었습니다.');
+      openModal({ content: '초대코드가 클립보드에 복사되었습니다.' });
     } catch {
-      alert('복사에 실패했습니다.');
+      openModal({ content: '복사에 실패했습니다.' });
     }
   };
 
@@ -103,103 +114,128 @@ export default function MyPage() {
   };
 
   const onLogout = async () => {
-    const ok = window.confirm('로그아웃 하시겠어요?');
-    if (!ok) return;
-
-    try {
-      setUpdating(true);
-      await logout();
-      await removeItem('accessToken');
-      await removeItem('refreshToken');
-      await removeItem('registrationToken');
-      setAccessToken(null);
-      useSignupStore.getState().reset();
-      navigate('/', { replace: true });
-    } catch (e: any) {
-      alert(e?.message || '로그아웃에 실패했습니다');
-    } finally {
-      setUpdating(false);
-    }
+    openModal({
+      type: 'confirm',
+      title: '로그아웃',
+      content: '정말 로그아웃 하시겠어요?',
+      confirmText: '로그아웃',
+      onConfirm: async () => {
+        try {
+          setUpdating(true);
+          await logout();
+          await removeItem('accessToken');
+          await removeItem('refreshToken');
+          await removeItem('registrationToken');
+          setAccessToken(null);
+          useSignupStore.getState().reset();
+          navigate('/', { replace: true });
+        } catch (e: any) {
+          openModal({ content: e?.message || '로그아웃에 실패했습니다' });
+        }
+        finally {
+          setUpdating(false);
+        }
+      }
+    });
   };
 
   const onDeleteAccount = async () => {
-    const ok = window.confirm('정말 탈퇴하시겠습니까?');
-    if (!ok) return;
-
-    if (deleting) return;
-    try {
-      setDeleting(true);
-      await deleteMember();
-      await removeItem('accessToken');
-      await removeItem('refreshToken');
-      await removeItem('registrationToken');
-      useSignupStore.getState().reset();
-      navigate('/', { replace: true });
-    } catch (e: any) {
-      alert(e?.message || '회원 탈퇴에 실패했습니다');
-    } finally {
-      setDeleting(false);
-    }
+    openModal({
+      type: 'confirm',
+      title: '회원 탈퇴',
+      content: '정말 탈퇴하시겠습니까?\n모든 데이터가 삭제되며 복구할 수 없습니다.',
+      confirmText: '탈퇴하기',
+      cancelText: '유지하기',
+      onConfirm: async () => {
+        if (deleting) return;
+        try {
+          setDeleting(true);
+          await deleteMember();
+          await removeItem('accessToken');
+          await removeItem('refreshToken');
+          await removeItem('registrationToken');
+          useSignupStore.getState().reset();
+          navigate('/', { replace: true });
+        } catch (e: any) {
+          openModal({ content: e?.message || '회원 탈퇴에 실패했습니다' });
+        } finally {
+          setDeleting(false);
+        }
+      }
+    });
   };
 
   if (loading) {
     return (
-      <div className="-mx-4 -mt-4 min-h-screen bg-onsikku-main-orange flex items-center justify-center">
-        <p className="text-gray-600">불러오는 중...</p>
+      <div className="min-h-screen bg-orange-50 flex items-center justify-center">
+        <p className="font-sans text-gray-500">불러오는 중...</p>
       </div>
     );
   }
 
   return (
-    <div className="-mx-4 -mt-4 min-h-screen bg-onsikku-main-orange">
-      <div className="px-4 pt-5 pb-[30px]">
-        <div className="gap-4 flex flex-col">
+    <div className="min-h-screen bg-orange-50 pb-10">
+      <div className="mx-auto w-full px-5 pt-8">
+        {/* Header */}
+        <div className="mb-6">
+          <h1 className="font-sans text-2xl font-bold text-gray-900 ml-1">
+            내 정보
+          </h1>
+        </div>
+
+        <div className="gap-5 flex flex-col">
           {/* 내 정보 카드 */}
-          <div className="bg-white w-full p-5 rounded-3xl shadow-sm">
-            <div className="flex flex-row items-center justify-between mb-4">
-              <div className="text-xl font-bold text-gray-800">기본 정보</div>
+          <div className="bg-white w-full p-6 rounded-3xl shadow-sm">
+            <div className="flex flex-row items-center justify-between mb-5">
+              <div className="text-lg font-bold text-gray-900">기본 정보</div>
 
               <button
                 type="button"
                 onClick={onEditProfile}
-                className="flex flex-row items-center px-3 py-1.5 bg-orange-50 rounded-lg active:opacity-70"
+                className="flex flex-row items-center px-3 py-1.5 bg-orange-50 rounded-xl active:scale-95 transition-transform"
               >
-                <IoCreateOutline size={18} color="#FB923C" />
-                <span className="text-sm font-medium text-orange-600 ml-1">
+                <IoCreateOutline size={16} color="#FB923C" />
+                <span className="text-sm font-bold text-orange-600 ml-1.5">
                   수정
                 </span>
               </button>
             </div>
 
-            <div className="gap-3 flex flex-col">
-              <div className="flex flex-row items-center justify-between py-2 border-b border-gray-100">
+            <div className="gap-4 flex flex-col">
+              <div className="flex flex-row items-center justify-between py-1">
                 <div className="flex flex-row items-center">
-                  <IoPersonCircleOutline size={22} color="#FB923C" />
-                  <span className="text-base text-gray-600 ml-2">닉네임</span>
+                  <div className="bg-orange-50 p-1.5 rounded-full">
+                    <IoPersonCircleOutline size={20} color="#FB923C" />
+                  </div>
+                  <span className="text-base text-gray-500 ml-3">닉네임</span>
                 </div>
-                <span className="text-base font-medium text-gray-800">
+                <span className="text-base font-medium text-gray-900">
                   {data?.member?.nickname || '-'}
                 </span>
               </div>
 
-              <div className="flex flex-row items-center justify-between py-2 border-b border-gray-100">
+              <div className="flex flex-row items-center justify-between py-1">
                 <div className="flex flex-row items-center">
-                  <IoHomeOutline size={22} color="#FB923C" />
-                  <span className="text-base text-gray-600 ml-2">가족명</span>
+                  <div className="bg-orange-50 p-1.5 rounded-full">
+                    <IoHomeOutline size={20} color="#FB923C" />
+                  </div>
+                  <span className="text-base text-gray-500 ml-3">가족명</span>
                 </div>
-                <span className="text-base font-medium text-gray-800">
+                <span className="text-base font-medium text-gray-900">
                   {data?.family?.familyName}
                 </span>
               </div>
 
-              <div className="flex flex-row items-center justify-between py-2 border-b border-gray-100">
+              <div className="flex flex-row items-center justify-between py-1">
                 <div className="flex flex-row items-center">
-                  <IoPeopleOutline size={22} color="#FB923C" />
-                  <span className="text-base text-gray-600 ml-2">
-                    가족 내 역할
+                  <div className="bg-orange-50 p-1.5 rounded-full">
+                    <IoPeopleOutline size={20} color="#FB923C" />
+                  </div>
+                  <span className="text-base text-gray-500 ml-3">
+                    역할
                   </span>
                 </div>
-                <span className="text-base font-medium text-gray-800">
+                <span className="text-base font-medium text-gray-900">
                   {
                     getRoleIconAndText(
                       data?.member?.familyRole,
@@ -209,22 +245,26 @@ export default function MyPage() {
                 </span>
               </div>
 
-              <div className="flex flex-row items-center justify-between py-2 border-b border-gray-100">
+              <div className="flex flex-row items-center justify-between py-1">
                 <div className="flex flex-row items-center">
-                  <IoCalendarOutline size={22} color="#FB923C" />
-                  <span className="text-base text-gray-600 ml-2">생년월일</span>
+                  <div className="bg-orange-50 p-1.5 rounded-full">
+                    <IoCalendarOutline size={20} color="#FB923C" />
+                  </div>
+                  <span className="text-base text-gray-500 ml-3">생년월일</span>
                 </div>
-                <span className="text-base font-medium text-gray-800">
+                <span className="text-base font-medium text-gray-900">
                   {data?.member?.birthDate ?? '-'}
                 </span>
               </div>
 
-              <div className="flex flex-row items-center justify-between py-2">
+              <div className="flex flex-row items-center justify-between py-1">
                 <div className="flex flex-row items-center">
-                  <IoMaleFemaleOutline size={22} color="#FB923C" />
-                  <span className="text-base text-gray-600 ml-2">성별</span>
+                  <div className="bg-orange-50 p-1.5 rounded-full">
+                    <IoMaleFemaleOutline size={20} color="#FB923C" />
+                  </div>
+                  <span className="text-base text-gray-500 ml-3">성별</span>
                 </div>
-                <span className="text-base font-medium text-gray-800">
+                <span className="text-base font-medium text-gray-900">
                   {genderToKo(data?.member?.gender)}
                 </span>
               </div>
@@ -232,8 +272,8 @@ export default function MyPage() {
           </div>
 
           {/* 함께하는 가족 */}
-          <div className="bg-white w-full p-5 rounded-3xl shadow-sm">
-            <div className="text-xl font-bold text-gray-800 mb-4">
+          <div className="bg-white w-full p-6 rounded-3xl shadow-sm">
+            <div className="text-lg font-bold text-gray-900 mb-5">
               함께하는 가족
             </div>
             <div className="gap-3 flex flex-col">
@@ -243,32 +283,35 @@ export default function MyPage() {
                   <div
                     key={member.id}
                     className={
-                      'flex flex-row items-center justify-between py-2 ' +
-                      (!isLast ? 'border-b border-gray-100' : '')
+                      'flex flex-row items-center justify-between py-3 ' +
+                      (!isLast ? 'border-b border-gray-50' : '')
                     }
                   >
                     <div className="flex flex-row items-center">
-                      <IoPersonCircleOutline size={26} color="#FB923C" />
-                      <span className="text-base text-gray-600 ml-2">
+                      <div className="w-10 h-10 rounded-full flex items-center justify-center overflow-hidden">
+                        <RoleIcon
+                          icon={
+                            getRoleIconAndText(member.familyRole, member.gender)
+                              .icon
+                          }
+                          size={40}
+                        />
+                      </div>
+                      <span className="text-base text-gray-600 ml-3 font-medium">
                         {
                           getRoleIconAndText(member.familyRole, member.gender)
                             .text
                         }{' '}
-                        ({calculateAge(member.birthDate)}세)
+                        <span className="text-gray-400 text-sm font-normal ml-1">
+                          ({calculateAge(member.birthDate)}세)
+                        </span>
                       </span>
                       {member.id === data?.member?.id && (
-                        <span className="text-xs font-bold text-orange-500 ml-1">
-                          (나)
+                        <span className="text-xs font-bold text-white bg-orange-400 px-1.5 py-0.5 rounded ml-2">
+                          나
                         </span>
                       )}
                     </div>
-
-                    <span className="text-base font-medium text-gray-800">
-                      {
-                        getRoleIconAndText(member.familyRole, member.gender)
-                          .text
-                      }
-                    </span>
                   </div>
                 );
               })}
@@ -282,16 +325,18 @@ export default function MyPage() {
           </div>
 
           {/* 설정 카드 */}
-          <div className="bg-white w-full p-5 rounded-3xl shadow-sm">
-            <div className="text-xl font-bold text-gray-800 mb-4">설정</div>
+          <div className="bg-white w-full p-6 rounded-3xl shadow-sm">
+            <div className="text-lg font-bold text-gray-900 mb-4">설정</div>
 
             <div className="gap-3 flex flex-col">
-              <div className="flex flex-row items-center justify-between py-2 border-t border-gray-100 pt-3">
+              <div className="flex flex-row items-center justify-between py-2">
                 <div className="flex flex-row items-center flex-1">
-                  <IoKeyOutline size={22} color="#FB923C" />
-                  <div className="ml-2">
-                    <div className="text-base text-gray-800">가족 초대코드</div>
-                    <div className="text-sm text-gray-500 mt-0.5 font-mono">
+                  <div className="bg-orange-50 p-1.5 rounded-full">
+                    <IoKeyOutline size={20} color="#FB923C" />
+                  </div>
+                  <div className="ml-3">
+                    <div className="text-base text-gray-900 font-medium">초대코드</div>
+                    <div className="text-sm text-gray-500 mt-0.5 font-mono tracking-wider">
                       {data?.family?.invitationCode || '-'}
                     </div>
                   </div>
@@ -301,39 +346,39 @@ export default function MyPage() {
                   <button
                     type="button"
                     onClick={copyInvitationCode}
-                    className="px-3 py-2 rounded-lg bg-orange-50 active:opacity-70"
+                    className="p-2.5 rounded-xl bg-orange-50 active:scale-95 transition-transform"
+                    aria-label="복사"
                   >
-                    <IoCopyOutline size={16} color="#FB923C" />
+                    <IoCopyOutline size={18} color="#FB923C" />
                   </button>
 
                   <button
                     type="button"
                     onClick={regenerateInvitation}
                     disabled={updating}
-                    className="px-3 py-2 rounded-lg bg-orange-50 active:opacity-70 disabled:opacity-60"
+                    className="p-2.5 rounded-xl bg-orange-50 active:scale-95 transition-transform disabled:opacity-50"
+                    aria-label="재발급"
                   >
-                    <IoRefresh size={16} color="#FB923C" />
+                    <IoRefresh size={18} color="#FB923C" />
                   </button>
                 </div>
               </div>
             </div>
           </div>
 
-          <LogoutButton onPress={onLogout} />
+          <div className="flex flex-col gap-3 mt-2">
+            <LogoutButton onPress={onLogout} />
 
-          <button
-            type="button"
-            onClick={onDeleteAccount}
-            className="bg-white w-full p-4 rounded-3xl shadow-sm items-center active:opacity-70"
-          >
-            <span className="text-red-500 font-medium">
-              {deleting ? '탈퇴 처리 중...' : '회원 탈퇴'}
-            </span>
-          </button>
-
-          {error ? (
-            <div className="text-red-500 text-sm text-center">{error}</div>
-          ) : null}
+            <button
+              type="button"
+              onClick={onDeleteAccount}
+              className="bg-white w-full p-4 rounded-2xl shadow-sm items-center active:scale-[0.98] transition-transform"
+            >
+              <span className="text-red-500 font-medium text-base">
+                {deleting ? '탈퇴 처리 중...' : '회원 탈퇴'}
+              </span>
+            </button>
+          </div>
         </div>
       </div>
     </div>

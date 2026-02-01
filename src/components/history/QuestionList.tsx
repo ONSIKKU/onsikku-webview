@@ -56,16 +56,6 @@ export default function QuestionList({
     );
   }
 
-  if (error) {
-    return (
-      <div className="w-full">
-        <div className="bg-white p-6 rounded-2xl shadow-sm">
-          <div className="font-sans text-red-500 text-center text-base">{error}</div>
-        </div>
-      </div>
-    );
-  }
-
   if (convertedQuestions.length === 0) {
     return (
       <div className="w-full">

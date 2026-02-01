@@ -25,27 +25,26 @@ export default function DateSelector({
   disableNext = false,
 }: DateSelectorProps) {
   return (
-    <div className="bg-white w-full p-6 rounded-2xl shadow-sm">
+    <div className="bg-white w-full p-6 rounded-3xl shadow-sm">
       <div className="flex flex-row items-center justify-between">
         <button
           type="button"
           onClick={onPrevMonth}
           disabled={disablePrev}
-          className="p-2 active:opacity-50 disabled:opacity-50"
+          className="p-3 bg-orange-50 rounded-full active:scale-90 transition-transform disabled:opacity-50 disabled:active:scale-100"
         >
           <IoChevronBackOutline
-            size={24}
-            className={disablePrev ? 'text-gray-300' : 'text-orange-500'}
+            size={20}
+            className={disablePrev ? 'text-gray-300' : 'text-onsikku-dark-orange'}
           />
         </button>
 
         <button
           type="button"
           onClick={onDatePress}
-          className="flex flex-row items-center p-2 active:opacity-50"
+          className="flex flex-row items-center px-4 py-2 rounded-xl active:bg-gray-50 transition-colors"
         >
-          <IoTimeOutline size={20} className="text-orange-500" />
-          <div className="font-sans text-lg font-bold text-gray-900 ml-2">
+          <div className="font-sans text-xl font-bold text-gray-900">
             {selectedYear}년 {selectedMonth}월
           </div>
         </button>
@@ -54,11 +53,11 @@ export default function DateSelector({
           type="button"
           onClick={onNextMonth}
           disabled={disableNext}
-          className="p-2 active:opacity-50 disabled:opacity-50"
+          className="p-3 bg-orange-50 rounded-full active:scale-90 transition-transform disabled:opacity-50 disabled:active:scale-100"
         >
           <IoChevronForwardOutline
-            size={24}
-            className={disableNext ? 'text-gray-300' : 'text-orange-500'}
+            size={20}
+            className={disableNext ? 'text-gray-300' : 'text-onsikku-dark-orange'}
           />
         </button>
       </div>

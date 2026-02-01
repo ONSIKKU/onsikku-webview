@@ -41,9 +41,9 @@ export default function TabsLayout() {
   ];
 
   return (
-    <div className="min-h-screen bg-onsikku-light-gray">
+    <div className="min-h-screen bg-orange-50">
       {/* Content Area */}
-      <main className="mx-auto w-full max-w-md px-4 pb-28 pt-4">
+      <main className="mx-auto w-full max-w-md pb-28">
         <Outlet />
       </main>
 

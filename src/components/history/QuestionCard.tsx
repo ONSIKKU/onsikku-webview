@@ -1,5 +1,6 @@
 import React from 'react';
 import { IoChevronForwardOutline } from 'react-icons/io5';
+import RoleIcon from '../RoleIcon';
 
 export interface Question {
   id: string;
@@ -38,7 +39,7 @@ export default function QuestionCard({
       type="button"
       onClick={onPress}
       disabled={isPending || !onPress}
-      className={`w-full p-5 rounded-2xl shadow-sm border border-gray-100 text-left ${
+      className={`w-full p-5 rounded-3xl shadow-sm border border-gray-100 text-left active:scale-[0.98] transition-transform ${
         isPending ? 'bg-gray-50' : 'bg-white'
       }`}
     >
@@ -47,8 +48,10 @@ export default function QuestionCard({
           <div className="font-sans text-base font-bold text-orange-500 mr-2">
             {item.date}
           </div>
-          <span style={{ fontSize: 18 }}>{item.authorAvatar}</span>
-          <div className="font-sans text-base text-gray-700 ml-1">
+          <div className="w-6 h-6 rounded-full flex items-center justify-center overflow-hidden mr-1.5">
+             <RoleIcon icon={item.authorAvatar} size={24} />
+          </div>
+          <div className="font-sans text-base text-gray-700">
             {item.author}
           </div>
         </div>

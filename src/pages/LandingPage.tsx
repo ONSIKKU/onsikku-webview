@@ -8,12 +8,9 @@ export default function LandingPage() {
   const navigate = useNavigate();
 
   const goToKakaoWebView = () => {
-    // RN: router.push("/KakaoLoginWebView");
-    // Web: 카카오 로그인 시작 라우트로 이동
     navigate("/auth/kakao");
   };
 
-  // RN에는 없지만, "이미 로그인 상태면 홈으로" 흐름을 맞추기 위해 유지
   useEffect(() => {
     (async () => {
       const token = await getItem("accessToken");
@@ -22,29 +19,52 @@ export default function LandingPage() {
   }, [navigate]);
 
   return (
-    <div className="flex-1">
-      <div className="min-h-screen overflow-y-auto">
-        <div className="min-h-screen flex flex-col justify-center items-center gap-4">
-          <div className="px-2 flex flex-row gap-1 items-center justify-between">
-            <img src={mainLogo} className="w-24 h-24 object-contain" alt="main logo" />
-            <span className="font-bold text-6xl">온식구</span>
-          </div>
+    <div className="min-h-screen bg-orange-50 flex flex-col items-center justify-between px-6 py-12 pb-20">
+      {/* Top Spacer */}
+      <div className="flex-1" />
 
-          <p className="font-sans text-center text-xl text-gray-700">
+      {/* Brand Section */}
+      <div className="flex-col items-center flex gap-6 mb-12">
+        <div className="relative">
+          <div className="absolute -inset-4 bg-orange-100/50 rounded-full blur-xl" />
+          <img
+            src={mainLogo}
+            className="w-32 h-32 object-contain relative z-10 drop-shadow-sm"
+            alt="온식구 로고"
+          />
+        </div>
+        
+        <div className="text-center">
+          <h1 className="font-bold text-4xl text-gray-900 mb-3 tracking-tight">
+            온식구
+          </h1>
+          <p className="font-sans text-lg text-gray-600 leading-relaxed">
             매일 5분,<br />
             가족과 더 가까워지는 시간
           </p>
+        </div>
+      </div>
 
-          <button className="w-full px-4" onClick={goToKakaoWebView} type="button">
-            <img
-              src={kakaoLogin}
-              className="w-full h-14 object-contain"
-              alt="kakao login"
-            />
-          </button>
+      {/* Middle Spacer */}
+      <div className="flex-1" />
 
-          <p className="font-sans text-center text-xl text-gray-700">
-            카카오톡 계정으로 간편하게 <br />
+      {/* Action Section */}
+      <div className="w-full max-w-xs flex flex-col items-center gap-5">
+        <button 
+          className="w-full transition-transform active:scale-95 duration-200 hover:opacity-90 shadow-sm rounded-xl overflow-hidden" 
+          onClick={goToKakaoWebView} 
+          type="button"
+        >
+          <img
+            src={kakaoLogin}
+            className="w-full h-[50px] object-cover"
+            alt="카카오 로그인"
+          />
+        </button>
+
+        <div className="text-center">
+          <p className="font-sans text-sm text-gray-400 leading-snug">
+            카카오톡 계정으로 간편하게<br />
             가족과의 소중한 시간을 시작해보세요
           </p>
         </div>

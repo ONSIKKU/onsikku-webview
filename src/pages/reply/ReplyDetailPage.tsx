@@ -14,6 +14,8 @@ import {
 } from '@/utils/api';
 import { getItem } from '@/utils/AsyncStorage';
 import { getRoleIconAndText } from '@/utils/labels';
+import RoleIcon from '@/components/RoleIcon';
+import { useModalStore } from '@/features/modal/modalStore';
 
 function ArrowBackIcon({ size = 24 }: { size?: number }) {
   return (
@@ -268,8 +270,8 @@ const FeedCard = ({
       {/* Header */}
       <div className="flex-row justify-between items-center mb-3 flex">
         <div className="flex-row items-center gap-3 flex">
-          <div className="w-11 h-11 rounded-full bg-orange-100 items-center justify-center flex">
-            <span className="text-xl">{roleIcon}</span>
+          <div className="w-11 h-11 rounded-full items-center justify-center flex overflow-hidden">
+            <RoleIcon icon={roleIcon} size={44} />
           </div>
           <div>
             <div className="font-sans font-bold text-gray-900 text-base">
@@ -346,8 +348,8 @@ const CommentCard = ({
         <div className="flex-1 ml-0">
           <div className="flex-row justify-between items-start mb-2 flex">
             <div className="flex-row items-center gap-2 flex">
-              <div className="w-8 h-8 rounded-full bg-orange-100 items-center justify-center flex">
-                <span className="text-sm">{roleIcon}</span>
+              <div className="w-8 h-8 rounded-full items-center justify-center flex overflow-hidden">
+                <RoleIcon icon={roleIcon} size={32} />
               </div>
               <div>
                 <div className="font-sans font-bold text-gray-900 text-sm">
@@ -407,6 +409,7 @@ const CommentCard = ({
 export default function ReplyDetailPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { openModal } = useModalStore();
 
   const query = useMemo(
     () => new URLSearchParams(location.search),
@@ -516,13 +519,13 @@ export default function ReplyDetailPage() {
 
   const handleSaveEdit = async () => {
     if (!editingAnswer || !editText.trim()) {
-      alert('답변 내용을 입력해주세요.');
+      openModal({ content: '답변 내용을 입력해주세요.' });
       return;
     }
 
     // questionInstanceId is the memberQuestionId for this page context
     if (!questionInstanceId) {
-      alert('질문 정보를 찾을 수 없습니다.');
+      openModal({ content: '질문 정보를 찾을 수 없습니다.' });
       return;
     }
 
@@ -541,40 +544,44 @@ export default function ReplyDetailPage() {
       setShowEditModal(false);
       setEditingAnswer(null);
       setEditText('');
-      alert('답변이 수정되었습니다.');
+      openModal({ content: '답변이 수정되었습니다.' });
     } catch (e: any) {
       console.error('[답변 수정 에러]', e);
-      alert(e?.message || '답변 수정에 실패했습니다.');
+      openModal({ content: e?.message || '답변 수정에 실패했습니다.' });
     }
   };
 
   const handleDeleteAnswer = async (answer: Answer) => {
-    const ok = window.confirm('정말 이 답변을 삭제하시겠어요?');
-    if (!ok) return;
+    openModal({
+      type: 'confirm',
+      title: '답변 삭제',
+      content: '정말 이 답변을 삭제하시겠어요?',
+      onConfirm: async () => {
+        // questionInstanceId is the memberQuestionId for this page context
+        if (!questionInstanceId) {
+          openModal({ content: '질문 정보를 찾을 수 없습니다.' });
+          return;
+        }
 
-    // questionInstanceId is the memberQuestionId for this page context
-    if (!questionInstanceId) {
-      alert('질문 정보를 찾을 수 없습니다.');
-      return;
-    }
+        try {
+          const token = await getItem('accessToken');
+          if (token) setAccessToken(token);
 
-    try {
-      const token = await getItem('accessToken');
-      if (token) setAccessToken(token);
+          await deleteAnswer({
+            answerId: answer.answerId,
+            questionAssignmentId: questionInstanceId,
+            answerType: 'TEXT',
+            content: '',
+          });
 
-      await deleteAnswer({
-        answerId: answer.answerId,
-        questionAssignmentId: questionInstanceId,
-        answerType: 'TEXT',
-        content: '',
-      });
-
-      await fetchData();
-      alert('답변이 삭제되었습니다.');
-    } catch (e: any) {
-      console.error('[답변 삭제 에러]', e);
-      alert(e?.message || '답변 삭제에 실패했습니다.');
-    }
+          await fetchData();
+          openModal({ content: '답변이 삭제되었습니다.' });
+        } catch (e: any) {
+          console.error('[답변 삭제 에러]', e);
+          openModal({ content: e?.message || '답변 삭제에 실패했습니다.' });
+        }
+      }
+    });
   };
 
   const handleReaction = async (
@@ -596,18 +603,18 @@ export default function ReplyDetailPage() {
       setAnswers(convertedAnswers);
     } catch (e: any) {
       console.error('[반응 추가 에러]', e);
-      alert(e?.message || '반응을 남기지 못했습니다.');
+      openModal({ content: e?.message || '반응을 남기지 못했습니다.' });
     }
   };
 
   const handleCreateComment = async () => {
     if (!questionInstanceId || !newCommentText.trim()) {
-      alert('댓글 내용을 입력해주세요.');
+      openModal({ content: '댓글 내용을 입력해주세요.' });
       return;
     }
 
     if (answers.length === 0) {
-      alert('답변이 없어 댓글을 작성할 수 없습니다.');
+      openModal({ content: '답변이 없어 댓글을 작성할 수 없습니다.' });
       return;
     }
 
@@ -631,7 +638,7 @@ export default function ReplyDetailPage() {
       setReplyingToComment(null);
     } catch (e: any) {
       console.error('[댓글 생성 에러]', e);
-      alert(e?.message || '댓글 작성에 실패했습니다.');
+      openModal({ content: e?.message || '댓글 작성에 실패했습니다.' });
     }
   };
 
@@ -643,7 +650,7 @@ export default function ReplyDetailPage() {
 
   const handleSaveCommentEdit = async () => {
     if (!editingComment || !editCommentText.trim() || !questionInstanceId) {
-      alert('댓글 내용을 입력해주세요.');
+      openModal({ content: '댓글 내용을 입력해주세요.' });
       return;
     }
 
@@ -664,32 +671,36 @@ export default function ReplyDetailPage() {
       setShowEditCommentModal(false);
       setEditingComment(null);
       setEditCommentText('');
-      alert('댓글이 수정되었습니다.');
+      openModal({ content: '댓글이 수정되었습니다.' });
     } catch (e: any) {
       console.error('[댓글 수정 에러]', e);
-      alert(e?.message || '댓글 수정에 실패했습니다.');
+      openModal({ content: e?.message || '댓글 수정에 실패했습니다.' });
     }
   };
 
   const handleDeleteComment = async (comment: Comment) => {
-    const ok = window.confirm('정말 이 댓글을 삭제하시겠어요?');
-    if (!ok) return;
+    openModal({
+      type: 'confirm',
+      title: '댓글 삭제',
+      content: '정말 이 댓글을 삭제하시겠어요?',
+      onConfirm: async () => {
+        try {
+          const token = await getItem('accessToken');
+          if (token) setAccessToken(token);
 
-    try {
-      const token = await getItem('accessToken');
-      if (token) setAccessToken(token);
+          await deleteComment(comment.id);
 
-      await deleteComment(comment.id);
+          const questionData = await getQuestionInstanceDetails(questionInstanceId);
+          const commentList = questionData.questionDetails?.comments || [];
+          setComments(commentList as Comment[]);
 
-      const questionData = await getQuestionInstanceDetails(questionInstanceId);
-      const commentList = questionData.questionDetails?.comments || [];
-      setComments(commentList as Comment[]);
-
-      alert('댓글이 삭제되었습니다.');
-    } catch (e: any) {
-      console.error('[댓글 삭제 에러]', e);
-      alert(e?.message || '댓글 삭제에 실패했습니다.');
-    }
+          openModal({ content: '댓글이 삭제되었습니다.' });
+        } catch (e: any) {
+          console.error('[댓글 삭제 에러]', e);
+          openModal({ content: e?.message || '댓글 삭제에 실패했습니다.' });
+        }
+      }
+    });
   };
 
   const renderComments = () => {
@@ -772,10 +783,6 @@ export default function ReplyDetailPage() {
           {loading ? (
             <div className="py-10 items-center flex justify-center">
               <div className="h-8 w-8 animate-spin rounded-full border-4 border-orange-200 border-t-onsikku-dark-orange" />
-            </div>
-          ) : error ? (
-            <div className="py-10 text-center text-red-500 font-sans">
-              {error}
             </div>
           ) : (
             <>
