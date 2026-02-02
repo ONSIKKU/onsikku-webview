@@ -26,9 +26,11 @@ import { useEffect } from 'react';
 import GlobalModal from '@/components/GlobalModal';
 import { useModalStore } from '@/features/modal/modalStore';
 
-// ✅ 추가
 import ReplyPage from '@/pages/reply/ReplyPage';
 import ReplyDetailPage from '@/pages/reply/ReplyDetailPage';
+
+// ✅ 추가: 딥링크 브릿지
+import DeepLinkBridge from '@/routes/DeepLinkBridge';
 
 function SessionBridge() {
   const navigate = useNavigate();
@@ -45,6 +47,7 @@ function SessionBridge() {
     });
     return () => setOnSessionExpired(null);
   }, [navigate, openModal]);
+
   return null;
 }
 
@@ -52,7 +55,12 @@ export default function App() {
   return (
     <BrowserRouter>
       <GlobalModal />
+
+      {/* ✅ 여기 한 줄만 추가하면 됨 */}
+      <DeepLinkBridge />
+
       <SessionBridge />
+
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/auth/kakao" element={<KakaoLoginStart />} />
@@ -63,15 +71,12 @@ export default function App() {
         <Route path="/signup/image" element={<ImagePage />} />
         <Route path="/signup/family" element={<FamilyCodePage />} />
 
-        {/* ✅ 로그인 필요한 화면들 */}
         <Route element={<RequireAuth />}>
-          {/* ✅ 탭 없는 화면들 (Home에서 들어가는 화면들) */}
           <Route path="/reply" element={<ReplyPage />} />
           <Route path="/reply-detail" element={<ReplyDetailPage />} />
           <Route path="/mypage-edit" element={<MypageEdit />} />
           <Route path="/not-assigned" element={<NotAssignedPage />} />
 
-          {/* ✅ 탭 화면들 */}
           <Route element={<TabsLayout />}>
             <Route path="/home" element={<HomePage />} />
             <Route path="/history" element={<HistoryPage />} />
