@@ -35,6 +35,9 @@ export default function HomePage() {
   const [currentUserGender, setCurrentUserGender] = useState<string | null>(
     null,
   );
+  const [currentUserNickname, setCurrentUserNickname] = useState<string | null>(
+    null,
+  );
 
   // Pull to Refresh State
   const [startY, setStartY] = useState(0);
@@ -107,6 +110,7 @@ export default function HomePage() {
         setCurrentUserId(myPageData.member.id);
         setCurrentUserRole(myPageData.member.familyRole);
         setCurrentUserGender(myPageData.member.gender);
+        setCurrentUserNickname(myPageData.member.nickname || '');
       }
     } catch (e) {
       console.error('[현재 사용자 조회 에러]', e);
@@ -254,6 +258,8 @@ export default function HomePage() {
     getRoleIconAndText(currentUserRole as any, currentUserGender as any).text ||
     '가족';
 
+  const displayGreeting = currentUserNickname || greetingRoleText;
+
   return (
     <div 
       className="min-h-screen bg-orange-50 pb-10 overflow-hidden relative"
@@ -291,7 +297,7 @@ export default function HomePage() {
             })}
           </p>
           <h1 className="font-sans text-2xl font-bold text-gray-900 ml-1">
-            반가워요, <span className="text-onsikku-dark-orange">{greetingRoleText}</span>님! 👋
+            반가워요, <span className="text-onsikku-dark-orange">{displayGreeting}</span>님! 👋
           </h1>
         </div>
 

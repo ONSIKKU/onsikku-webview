@@ -93,7 +93,7 @@ export default function TodayQuestion({
           </div>
           <div className="bg-gray-50 px-4 py-2 rounded-full mt-1">
             <div className="text-gray-500 text-center text-sm font-medium">
-              매일 밤 9시 30분에 질문이 도착해요 🌙
+              매일 밤 10시에 질문이 도착해요 🌙
             </div>
           </div>
         </div>
