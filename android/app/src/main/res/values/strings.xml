@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">온식구</string>
+    <string name="title_activity_main">온식구</string>
+    <string name="package_name">com.onsikku.app</string>
+    <string name="custom_url_scheme">com.onsikku.app</string>
+</resources>
