@@ -10,53 +10,73 @@ const API_BASE =
   (import.meta.env.VITE_API_BASE as string | undefined) ||
   'https://api.onsikku.xyz';
 
+/**
+ * ✅ 백엔드가 302로 onsikku://auth?ticket=... 보내면
+ * 여기서 받아서:
+ * 1) Browser.close()
+ * 2) /api/auth/exchange?ticket=... 호출
+ * 3) 토큰 저장 + 라우팅
+ */
 export default function DeepLinkBridge() {
   const navigate = useNavigate();
-  const calledRef = useRef(false);
+  const handledRef = useRef(false);
 
   useEffect(() => {
-    // 네이티브 환경이 아니면 실행 중단
     if (!Capacitor.isNativePlatform()) return;
 
-    // App.addListener는 Promise<PluginListenerHandle>을 반환합니다.
-    const sub = App.addListener('appUrlOpen', async ({ url }) => {
-      if (calledRef.current) return;
-      if (!url?.startsWith('onsikku://auth')) return;
+    const listener = App.addListener('appUrlOpen', async ({ url }) => {
+      if (!url) return;
+      if (handledRef.current) return;
 
-      calledRef.current = true;
+      // ✅ 백엔드에서 보내는 딥링크 형태와 반드시 일치해야 함
+      // onsikku://auth?ticket=...
+      if (!url.startsWith('onsikku://auth')) return;
+
+      handledRef.current = true;
 
       try {
         const u = new URL(url);
         const ticket = u.searchParams.get('ticket');
         if (!ticket) throw new Error('ticket이 없습니다.');
 
-        // 1) 인증용 브라우저 닫기
-        await Browser.close();
+        // 1) 카카오 로그인 브라우저 닫기
+        try {
+          await Browser.close();
+        } catch {
+          // close가 실패해도 진행 가능
+        }
 
-        // 2) 백엔드와 티켓 교환 (토큰 수령)
+        // 2) ticket -> token 교환
         const res = await fetch(
           `${API_BASE}/api/auth/exchange?ticket=${encodeURIComponent(ticket)}`,
           { credentials: 'include' },
         );
 
         if (!res.ok) {
-          const txt = await res.text();
+          const txt = await res.text().catch(() => '');
           throw new Error(`토큰 교환 실패(${res.status}) ${txt}`);
         }
 
         const json = await res.json();
-        const { accessToken, registrationToken, registered } =
-          json?.result ?? json;
+        const payload = json?.result ?? json;
 
-        // 3) 토큰 저장 및 헤더 설정
-        if (registrationToken)
+        // 백엔드 AuthResponse 형태에 맞춰 파싱
+        const accessToken: string | undefined = payload?.accessToken;
+        const registrationToken: string | undefined =
+          payload?.registrationToken;
+        const registered: boolean | undefined =
+          payload?.isRegistered ?? payload?.registered;
+
+        // 3) 저장 + API 헤더 세팅
+        if (registrationToken) {
           await setItem('registrationToken', registrationToken);
+        }
         if (accessToken) {
-          await setAccessToken(accessToken); // API 헤더 설정
           await setItem('accessToken', accessToken);
+          await setAccessToken(accessToken);
         }
 
-        // 4) 사용자 상태에 따른 라우팅
+        // 4) 라우팅
         if (registered) {
           navigate('/home', { replace: true });
         } else {
@@ -65,16 +85,17 @@ export default function DeepLinkBridge() {
       } catch (e: any) {
         console.error('DeepLink Error:', e);
         alert(e?.message || '로그인 처리 중 오류가 발생했습니다.');
+        handledRef.current = false; // 실패 시 재시도 가능하게
         navigate('/', { replace: true });
-      } finally {
-        // 실패 시 재시도를 위해 초기화하거나 그대로 유지
-        calledRef.current = false;
       }
     });
 
-    // ✅ 클린업: Promise가 해결된 후 remove() 호출
     return () => {
-      sub.then((handle) => handle.remove());
+      // App.addListener는 Promise handle을 반환하는 환경도 있어서 안전하게 처리
+      (async () => {
+        const h: any = await listener;
+        h?.remove?.();
+      })();
     };
   }, [navigate]);
 

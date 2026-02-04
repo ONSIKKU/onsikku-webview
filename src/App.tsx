@@ -7,7 +7,6 @@ import {
 } from 'react-router-dom';
 import LandingPage from '@/pages/LandingPage';
 import KakaoLoginStart from '@/pages/auth/KakaoLoginStart';
-import KakaoLoginCallback from '@/pages/auth/KakaoLoginCallback';
 import RolePage from '@/pages/signup/RolePage';
 import BirthGenderPage from '@/pages/signup/BirthGenderPage';
 import ImagePage from '@/pages/signup/ImagePage';
@@ -29,7 +28,6 @@ import { useModalStore } from '@/features/modal/modalStore';
 import ReplyPage from '@/pages/reply/ReplyPage';
 import ReplyDetailPage from '@/pages/reply/ReplyDetailPage';
 
-// ✅ 추가: 딥링크 브릿지
 import DeepLinkBridge from '@/routes/DeepLinkBridge';
 
 function SessionBridge() {
@@ -56,15 +54,12 @@ export default function App() {
     <BrowserRouter>
       <GlobalModal />
 
-      {/* ✅ 여기 한 줄만 추가하면 됨 */}
       <DeepLinkBridge />
-
       <SessionBridge />
 
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/auth/kakao" element={<KakaoLoginStart />} />
-        <Route path="/auth/kakao/callback" element={<KakaoLoginCallback />} />
 
         <Route path="/signup/role" element={<RolePage />} />
         <Route path="/signup/birth" element={<BirthGenderPage />} />
