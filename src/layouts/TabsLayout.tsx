@@ -43,14 +43,14 @@ export default function TabsLayout() {
   return (
     <div className="min-h-screen bg-orange-50 pt-safe">
       {/* Content Area */}
-      <main className="mx-auto w-full max-w-md pb-28">
+      <main className="mx-auto w-full max-w-md pb-24">
         <Outlet />
       </main>
 
       {/* Bottom Navigation */}
       <div className="fixed bottom-0 left-0 right-0 z-50 pointer-events-none">
         <div className="mx-auto w-full max-w-md pointer-events-auto">
-          <nav className="bg-white rounded-t-[28px] shadow-[0_-8px_30px_rgba(0,0,0,0.06)] px-2 pt-3 pb-[calc(env(safe-area-inset-bottom)+1.5rem)]">
+          <nav className="bg-white rounded-t-[28px] shadow-[0_-8px_30px_rgba(0,0,0,0.06)] px-2 pt-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)]">
             <div className="flex flex-row justify-around items-center">
               {tabs.map((tab) => {
                 const isActive = location.pathname.startsWith(tab.path);
