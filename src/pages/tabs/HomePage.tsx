@@ -182,16 +182,6 @@ export default function HomePage() {
     return `${month}/${day}`;
   };
 
-  const getContentText = (content: any): string => {
-    if (typeof content === 'string') return content;
-    if (content?.text) return content.text;
-    try {
-      return JSON.stringify(content);
-    } catch {
-      return String(content);
-    }
-  };
-
   const recentAnswersData = useMemo(() => {
     return recentAnswers.map((answer) => {
       const familyRole =
@@ -209,7 +199,7 @@ export default function HomePage() {
       return {
         roleName: roleText,
         date: formatDate(answer.createdAt),
-        content: getContentText(answer.content),
+        content: qContent,
         questionInstanceId: qInstanceId,
         question: qContent,
         roleIcon,
