@@ -10,92 +10,133 @@ const API_BASE =
   (import.meta.env.VITE_API_BASE as string | undefined) ||
   'https://api.onsikku.xyz';
 
-/**
- * ✅ 백엔드가 302로 onsikku://auth?ticket=... 보내면
- * 여기서 받아서:
- * 1) Browser.close()
- * 2) /api/auth/exchange?ticket=... 호출
- * 3) 토큰 저장 + 라우팅
- */
 export default function DeepLinkBridge() {
   const navigate = useNavigate();
-  const handledRef = useRef(false);
+
+  // ✅ 같은 ticket이 중복으로 들어오는 것만 막고, 새 ticket은 처리
+  const lastTicketRef = useRef<string | null>(null);
+  const isHandlingRef = useRef(false);
 
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
 
-    const listener = App.addListener('appUrlOpen', async ({ url }) => {
-      if (!url) return;
-      if (handledRef.current) return;
+    const sub = App.addListener('appUrlOpen', async ({ url }) => {
+      console.log('[DeepLink] appUrlOpen url =', url);
 
-      // ✅ 백엔드에서 보내는 딥링크 형태와 반드시 일치해야 함
-      // onsikku://auth?ticket=...
+      if (!url) return;
       if (!url.startsWith('onsikku://auth')) return;
 
-      handledRef.current = true;
-
+      let ticket = '';
       try {
         const u = new URL(url);
-        const ticket = u.searchParams.get('ticket');
-        if (!ticket) throw new Error('ticket이 없습니다.');
+        ticket = u.searchParams.get('ticket') ?? '';
+      } catch {
+        // URL 파싱 실패
+      }
 
-        // 1) 카카오 로그인 브라우저 닫기
+      if (!ticket) {
+        console.warn('[DeepLink] ticket missing');
+        alert('ticket이 없습니다.');
+        return;
+      }
+
+      // ✅ 같은 ticket이 또 들어오면 무시 (iOS에서 appUrlOpen 2번 오는 경우 방지)
+      if (lastTicketRef.current === ticket) {
+        console.log('[DeepLink] duplicated ticket ignored:', ticket);
+        return;
+      }
+
+      // ✅ 처리중이면(아직 exchange 완료 전) 새 이벤트는 무시
+      if (isHandlingRef.current) {
+        console.log('[DeepLink] handling in progress, ignored:', ticket);
+        return;
+      }
+
+      lastTicketRef.current = ticket;
+      isHandlingRef.current = true;
+
+      try {
+        // 로그인 브라우저 닫기 (실패해도 진행)
         try {
           await Browser.close();
-        } catch {
-          // close가 실패해도 진행 가능
-        }
+        } catch {}
 
-        // 2) ticket -> token 교환
         const res = await fetch(
           `${API_BASE}/api/auth/exchange?ticket=${encodeURIComponent(ticket)}`,
           { credentials: 'include' },
         );
 
-        if (!res.ok) {
-          const txt = await res.text().catch(() => '');
-          throw new Error(`토큰 교환 실패(${res.status}) ${txt}`);
+        const text = await res.text().catch(() => '');
+        const json = text ? JSON.parse(text) : null;
+
+        // ✅ 백엔드가 에러를 body로 내려주는 경우 대비 (HTTP 200이라도 code/errorMessage 있을 수 있음)
+        const isBackendError =
+          !res.ok ||
+          json?.errorMessage ||
+          json?.baseResponseStatus ||
+          (typeof json?.code === 'number' && json.code >= 400);
+
+        if (isBackendError) {
+          const msg =
+            json?.errorMessage ||
+            json?.message ||
+            `교환 실패 (HTTP ${res.status}, code=${json?.code ?? 'unknown'})`;
+          throw new Error(msg);
         }
 
-        const json = await res.json();
+        // BaseResponse면 result 안에 진짜 payload 있음
         const payload = json?.result ?? json;
 
-        // 백엔드 AuthResponse 형태에 맞춰 파싱
+        console.log('[DeepLink] exchange payload =', payload);
+
         const accessToken: string | undefined = payload?.accessToken;
+        const refreshToken: string | undefined = payload?.refreshToken;
         const registrationToken: string | undefined =
           payload?.registrationToken;
-        const registered: boolean | undefined =
-          payload?.isRegistered ?? payload?.registered;
 
-        // 3) 저장 + API 헤더 세팅
+        // boolean 키는 백엔드에 따라 isRegistered 또는 registered일 수 있음
+        const isRegistered: boolean =
+          payload?.isRegistered ?? payload?.registered ?? false;
+
+        // 저장
         if (registrationToken) {
           await setItem('registrationToken', registrationToken);
         }
         if (accessToken) {
+          setAccessToken(accessToken); // in-memory 토큰 세팅 (API 호출에 필요)
           await setItem('accessToken', accessToken);
-          await setAccessToken(accessToken);
+        }
+        if (refreshToken) {
+          await setItem('refreshToken', refreshToken);
         }
 
-        // 4) 라우팅
-        if (registered) {
+        if (!accessToken && !registrationToken) {
+          throw new Error(
+            '토큰을 받지 못했습니다. (accessToken/registrationToken 없음)',
+          );
+        }
+
+        // 라우팅
+        if (isRegistered) {
           navigate('/home', { replace: true });
         } else {
           navigate('/signup/role', { replace: true });
         }
       } catch (e: any) {
-        console.error('DeepLink Error:', e);
+        console.error('[DeepLink] error:', e);
         alert(e?.message || '로그인 처리 중 오류가 발생했습니다.');
-        handledRef.current = false; // 실패 시 재시도 가능하게
+
+        // 실패하면 같은 ticket이라도 다시 시도 가능하게 하려면 lastTicketRef를 초기화
+        lastTicketRef.current = null;
+
         navigate('/', { replace: true });
+      } finally {
+        isHandlingRef.current = false;
       }
     });
 
     return () => {
-      // App.addListener는 Promise handle을 반환하는 환경도 있어서 안전하게 처리
-      (async () => {
-        const h: any = await listener;
-        h?.remove?.();
-      })();
+      sub.then((handle) => handle.remove());
     };
   }, [navigate]);
 

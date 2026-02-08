@@ -90,7 +90,7 @@ export default function NotAssignedPage() {
     '가족';
 
   return (
-    <div className="min-h-screen w-full bg-orange-50">
+    <div className="min-h-screen w-full bg-orange-50 pt-safe">
       <div className="mx-auto w-full max-w-md px-5 pb-10 pt-3">
         {/* Header Section */}
         <div className="mb-6 mt-2">

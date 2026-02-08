@@ -148,7 +148,7 @@ export default function MyPageEdit() {
   }
 
   return (
-    <div className="min-h-screen bg-orange-50">
+    <div className="min-h-screen bg-orange-50 pt-safe">
       <div className="mx-auto w-full max-w-md">
         {/* Header */}
         <div className="px-4 py-2 flex flex-row items-center mb-2">

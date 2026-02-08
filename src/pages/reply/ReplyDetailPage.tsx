@@ -747,7 +747,7 @@ export default function ReplyDetailPage() {
   };
 
   return (
-    <div className="min-h-screen bg-orange-50">
+    <div className="min-h-screen bg-orange-50 pt-safe">
       {/* Header */}
       <div className="mx-auto w-full max-w-md px-4 pt-4">
         <div className="px-0 py-2 flex-row items-center mb-2 flex">
@@ -852,7 +852,7 @@ export default function ReplyDetailPage() {
 
       {/* Bottom comment input */}
       <div className="fixed bottom-0 left-0 right-0">
-        <div className="mx-auto w-full max-w-md px-5 pb-8 pt-2 bg-transparent">
+        <div className="mx-auto w-full max-w-md px-5 pt-2 bg-transparent pb-[calc(env(safe-area-inset-bottom)+2rem)]">
           <div className="bg-white rounded-2xl px-2 py-2 shadow-lg border border-orange-100">
             {replyingToComment && (
               <div className="flex-row items-center justify-between bg-orange-50 px-3 py-2 rounded-lg mb-2 flex">

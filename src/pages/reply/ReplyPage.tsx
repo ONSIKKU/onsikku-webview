@@ -111,7 +111,7 @@ export default function ReplyPage() {
   };
 
   return (
-    <div className="min-h-screen bg-orange-50">
+    <div className="min-h-screen bg-orange-50 pt-safe">
       <div className="mx-auto w-full max-w-md px-5 pt-4 pb-8 min-h-screen flex flex-col">
         {/* Header */}
         <div className="px-0 py-2 flex-row items-center mb-4 flex">
