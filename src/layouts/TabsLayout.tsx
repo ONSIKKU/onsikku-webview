@@ -1,4 +1,4 @@
-import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import {
   IoHome,
   IoHomeOutline,
@@ -8,33 +8,37 @@ import {
   IoNotificationsOutline,
   IoPerson,
   IoPersonOutline,
-} from "react-icons/io5";
+} from 'react-icons/io5';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
 
 export default function TabsLayout() {
   const location = useLocation();
 
+  // ✅ 로그인 후 탭 레이아웃이 로드되면 푸시 초기화(권한/등록/리스너)
+  usePushNotifications();
+
   const tabs = [
     {
-      path: "/home",
-      label: "홈",
+      path: '/home',
+      label: '홈',
       ActiveIcon: IoHome,
       InactiveIcon: IoHomeOutline,
     },
     {
-      path: "/history",
-      label: "기록",
+      path: '/history',
+      label: '기록',
       ActiveIcon: IoCalendar,
       InactiveIcon: IoCalendarOutline,
     },
     {
-      path: "/notification",
-      label: "알림",
+      path: '/notification',
+      label: '알림',
       ActiveIcon: IoNotifications,
       InactiveIcon: IoNotificationsOutline,
     },
     {
-      path: "/mypage",
-      label: "내정보",
+      path: '/mypage',
+      label: '내정보',
       ActiveIcon: IoPerson,
       InactiveIcon: IoPersonOutline,
     },
@@ -63,22 +67,20 @@ export default function TabsLayout() {
                     className={({ isActive }) =>
                       `flex flex-col items-center justify-center p-2 rounded-2xl transition-all duration-200 active:scale-95 ${
                         isActive
-                          ? "text-onsikku-dark-orange"
-                          : "text-gray-300 hover:text-gray-400"
+                          ? 'text-onsikku-dark-orange'
+                          : 'text-gray-300 hover:text-gray-400'
                       }`
                     }
                   >
                     <div className="relative mb-1">
                       <Icon size={26} />
-                      {tab.path === "/notification" && (
+                      {tab.path === '/notification' && (
                         // Optional: Badge placeholder if needed later
                         // <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-red-500" />
                         null
                       )}
                     </div>
-                    <span className="text-[10px] font-medium font-sans">
-                      {tab.label}
-                    </span>
+                    <span className="text-[10px] font-medium font-sans">{tab.label}</span>
                   </NavLink>
                 );
               })}

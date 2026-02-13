@@ -7,6 +7,12 @@ const DEFAULT_BASE_URL =
 
 let baseUrl = DEFAULT_BASE_URL;
 
+// ✅ Push token을 서버에 등록/삭제할 때 사용할 엔드포인트 (VITE_API_BASE 기준 상대경로)
+// ⚠️ 백엔드 구현에 맞게 수정하세요. (예: /api/members/push-token 등)
+const DEFAULT_PUSH_TOKEN_PATH =
+  (import.meta.env.VITE_PUSH_TOKEN_PATH as string | undefined) ||
+  "/api/notifications/token";
+
 export const setBaseUrl = (url: string) => {
   baseUrl = url || DEFAULT_BASE_URL;
 };
@@ -652,6 +658,40 @@ export async function getNotifications() {
   });
   return response;
 }
+
+// -------------------------
+// Push Notification Token Sync
+// -------------------------
+export type UpsertPushTokenRequest = {
+  token: string;
+  /** Capacitor.getPlatform(): 'ios' | 'android' | 'web' */
+  platform: string;
+};
+
+/**
+ * 디바이스 푸시 토큰을 서버에 등록/업데이트합니다.
+ * - 서버가 다른 형태를 기대한다면 여기만 수정하면 됩니다.
+ */
+export async function upsertPushToken(payload: UpsertPushTokenRequest) {
+  return apiFetch<void>(DEFAULT_PUSH_TOKEN_PATH, {
+    method: "POST",
+    body: JSON.stringify({
+      deviceToken: payload.token,
+      platform: payload.platform,
+    }),
+  });
+}
+
+/**
+ * 디바이스 푸시 토큰을 서버에서 삭제합니다. (선택)
+ * - 서버에서 DELETE를 지원하지 않으면 무시해도 됩니다.
+ */
+export async function deletePushToken() {
+  return apiFetch<void>(DEFAULT_PUSH_TOKEN_PATH, {
+    method: "DELETE",
+  });
+}
+
 
 export async function createComment(payload: any) {
     const body = { ...payload };

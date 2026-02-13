@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getItem } from '@/utils/AsyncStorage';
 import { getMyPage, patchMyPage, setAccessToken } from '@/utils/api';
+import { ensurePushPermissionAndRegister, unregisterPushNotifications } from '@/utils/pushNotifications';
 import { genderToKo, getApiFamilyRole } from '@/utils/labels';
 import { IoArrowBack, IoCalendarOutline } from 'react-icons/io5';
 import { useModalStore } from '@/features/modal/modalStore';
@@ -86,6 +87,15 @@ export default function MyPageEdit() {
         isAlarmEnabled,
         isFamilyInviteEnabled,
       });
+
+      // ✅ 알림 설정에 따라 네이티브 푸시 권한/등록 처리
+      // - iOS/Android 네이티브에서만 동작합니다.
+      // - 백엔드가 알림을 보내려면 디바이스 토큰이 서버에 등록되어 있어야 합니다.
+      if (isAlarmEnabled) {
+        await ensurePushPermissionAndRegister(false);
+      } else {
+        await unregisterPushNotifications();
+      }
 
       openModal({ content: '프로필이 수정되었습니다.' });
       navigate(-1);

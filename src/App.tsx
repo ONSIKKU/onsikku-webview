@@ -7,6 +7,7 @@ import {
 } from 'react-router-dom';
 import LandingPage from '@/pages/LandingPage';
 import KakaoLoginStart from '@/pages/auth/KakaoLoginStart';
+import AppleLoginStart from '@/pages/auth/AppleLoginStart';
 import RolePage from '@/pages/signup/RolePage';
 import BirthGenderPage from '@/pages/signup/BirthGenderPage';
 import ImagePage from '@/pages/signup/ImagePage';
@@ -60,6 +61,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/auth/kakao" element={<KakaoLoginStart />} />
+        <Route path="/auth/apple" element={<AppleLoginStart />} />
 
         <Route path="/signup/role" element={<RolePage />} />
         <Route path="/signup/birth" element={<BirthGenderPage />} />
