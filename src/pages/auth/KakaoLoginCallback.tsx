@@ -37,12 +37,10 @@ export default function KakaoLoginCallback() {
         // { code, message, result: { accessToken, registrationToken, registered } }
         const json = await res.json();
         const result = json?.result ?? json; // 혹시 래핑 안 된 경우 대비
-        const { accessToken, registrationToken, registered } = result;
+        const { accessToken, registered } = result;
 
-        if (registrationToken) {
-          await setItem("registrationToken", registrationToken);
-        }
         if (accessToken) {
+          console.log("🔓 Kakao Access Token:", accessToken);
           await setItem("accessToken", accessToken);
           setAccessToken(accessToken); // 메모리상 토큰 즉시 업데이트
         }

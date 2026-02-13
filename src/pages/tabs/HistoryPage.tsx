@@ -42,7 +42,8 @@ export default function HistoryPage() {
   }, [paramYear, paramMonth, setSearchParams]);
 
   // Helper to safely get date value for sorting
-  const getDateValue = (dateStr: string | null | undefined): number => {
+  const getDateValue = (q: QuestionDetails): number => {
+    const dateStr = q.sentAt || q.answeredAt;
     if (!dateStr) return 0;
     const date = new Date(dateStr);
     return isNaN(date.getTime()) ? 0 : date.getTime();
@@ -60,8 +61,8 @@ export default function HistoryPage() {
 
       // Sort questions
       const sortedQuestions = [...fetchedQuestions].sort((a, b) => {
-        const dateA = getDateValue(a.sentAt || a.dueAt);
-        const dateB = getDateValue(b.sentAt || b.dueAt);
+        const dateA = getDateValue(a);
+        const dateB = getDateValue(b);
         return sortOrder === 'newest' ? dateB - dateA : dateA - dateB;
       });
 
@@ -77,15 +78,20 @@ export default function HistoryPage() {
   useEffect(() => {
     if (questions.length > 0) {
       const sorted = [...questions].sort((a, b) => {
-        const dateA = getDateValue(a.sentAt || a.dueAt);
-        const dateB = getDateValue(b.sentAt || b.dueAt);
+        const dateA = getDateValue(a);
+        const dateB = getDateValue(b);
         return sortOrder === 'newest' ? dateB - dateA : dateA - dateB;
       });
-      if (sorted[0]?.questionInstanceId !== questions[0]?.questionInstanceId) {
+      
+      // Compare by ID order to see if it actually changed
+      const currentIds = questions.map(q => q.questionInstanceId).join(',');
+      const sortedIds = sorted.map(q => q.questionInstanceId).join(',');
+      
+      if (currentIds !== sortedIds) {
         setQuestions(sorted);
       }
     }
-  }, [sortOrder]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [sortOrder]);
 
   useEffect(() => {
     fetchQuestions();

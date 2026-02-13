@@ -1,4 +1,5 @@
 import { IoTrashOutline } from 'react-icons/io5';
+import RoleIcon from '@/components/RoleIcon';
 
 export interface Notification {
   id: string;
@@ -8,6 +9,7 @@ export interface Notification {
   message: string;
   time: string;
   isRead: boolean;
+  relatedEntityId?: string;
 }
 
 const typeDetails: Record<
@@ -21,7 +23,15 @@ const typeDetails: Record<
   new_question: { title: '새로운 질문', icon: 'chatbox-outline' },
 };
 
-export default function NotificationCard({ item }: { item: Notification }) {
+export default function NotificationCard({
+  item,
+  onClick,
+  onDelete,
+}: {
+  item: Notification;
+  onClick: (item: Notification) => void;
+  onDelete: (id: string) => void;
+}) {
   const details = typeDetails[item.type];
 
   const borderColor = item.isRead
@@ -32,11 +42,12 @@ export default function NotificationCard({ item }: { item: Notification }) {
 
   return (
     <div
-      className={`w-full p-5 rounded-2xl shadow-sm bg-white border ${borderColor}`}
+      onClick={() => onClick(item)}
+      className={`w-full p-5 rounded-2xl shadow-sm bg-white border cursor-pointer active:opacity-90 transition-all ${borderColor}`}
     >
       <div className="flex flex-row justify-between items-start">
         <div className="flex flex-row items-center flex-1">
-          <span style={{ fontSize: 24 }}>{item.actorAvatar}</span>
+          <RoleIcon icon={item.actorAvatar} size={28} />
           <div className="text-base font-bold text-gray-800 ml-3">
             {details.title}
           </div>
@@ -45,8 +56,14 @@ export default function NotificationCard({ item }: { item: Notification }) {
           )}
         </div>
 
-        {/* RN 원본도 onPress 없음(1:1 유지) */}
-        <button type="button" className="active:opacity-70">
+        <button
+          type="button"
+          className="active:opacity-70 p-1"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete(item.id);
+          }}
+        >
           <IoTrashOutline size={20} color="gray" />
         </button>
       </div>

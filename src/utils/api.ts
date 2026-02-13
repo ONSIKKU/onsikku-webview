@@ -645,6 +645,8 @@ export type NotificationItem = {
   content: string;
   isRead: boolean;
   createdAt: string;
+  // 이동할 대상 ID (질문ID, 답변ID 등). 백엔드에서 내려준다고 가정.
+  relatedEntityId?: string; 
   sender?: {
     id: string;
     familyRole: ApiFamilyRole;
@@ -657,6 +659,18 @@ export async function getNotifications() {
     method: "GET",
   });
   return response;
+}
+
+export async function readNotification(notificationId: string) {
+  return apiFetch<void>(`/api/notifications/${notificationId}/read`, {
+    method: "PATCH",
+  });
+}
+
+export async function deleteNotification(notificationId: string) {
+  return apiFetch<void>(`/api/notifications/${notificationId}`, {
+    method: "DELETE",
+  });
 }
 
 // -------------------------

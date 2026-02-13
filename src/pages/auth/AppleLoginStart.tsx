@@ -116,6 +116,7 @@ export default function AppleLoginStart() {
           await setItem('registrationToken', registrationToken);
         }
         if (accessToken) {
+          console.log("🔓 Apple Access Token:", accessToken);
           setAccessToken(accessToken);
           await setItem('accessToken', accessToken);
         }

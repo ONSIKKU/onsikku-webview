@@ -10,12 +10,12 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@capacitor/android": "^8.0.2",
-    "@capacitor/app": "^8.0.0",
-    "@capacitor/browser": "^8.0.0",
-    "@capacitor/cli": "^8.0.2",
-    "@capacitor/core": "^8.0.2",
-    "@capacitor/ios": "^8.0.2",
+    "@capacitor/android": "^7.0.0",
+    "@capacitor/app": "^7.0.0",
+    "@capacitor/browser": "^7.0.0",
+    "@capacitor/cli": "^7.0.0",
+    "@capacitor/core": "^7.0.0",
+    "@capacitor/ios": "^7.0.0",
     "capacitor": "^0.5.6",
     "lucide-react": "^0.562.0",
     "react": "^19.2.0",
@@ -23,7 +23,7 @@
     "react-icons": "^5.5.0",
     "react-router-dom": "^6.26.0",
     "zustand": "^4.5.5",
-    "@capacitor/push-notifications": "^8.0.0",
+    "@capacitor/push-notifications": "^7.0.0",
     "@capacitor-community/apple-sign-in": "^7.1.0"
   },
   "devDependencies": {
