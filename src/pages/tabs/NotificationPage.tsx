@@ -6,7 +6,8 @@ import {
   getNotifications, 
   readNotification, 
   deleteNotification, 
-  setAccessToken 
+  setAccessToken,
+  getGenderFromRole
 } from '@/utils/api';
 import { getItem } from '@/utils/AsyncStorage';
 import { getRoleIconAndText } from '@/utils/labels';
@@ -64,8 +65,12 @@ export default function NotificationPage() {
         // Extract related ID from payload or deepLink
         let relatedId = item.payload?.memberQuestionId || item.payload?.questionInstanceId;
         if (!relatedId && item.deepLink) {
-           const url = new URL(item.deepLink, 'https://dummy.com');
-           relatedId = url.searchParams.get('questionInstanceId') || url.searchParams.get('questionAssignmentId');
+           try {
+             const url = new URL(item.deepLink, 'https://dummy.com');
+             relatedId = url.searchParams.get('questionInstanceId') || url.searchParams.get('questionAssignmentId') || undefined;
+           } catch (e) {
+             console.warn('Invalid deepLink URL', item.deepLink);
+           }
         }
 
         return {

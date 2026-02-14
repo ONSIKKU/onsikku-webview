@@ -773,13 +773,3 @@ export async function updateAnswer(payload: AnswerRequest) {
         })
     });
 }
-
-export async function deleteAnswer(payload: AnswerRequest) {
-     return apiFetch<void>("/api/questions/test/answers", { 
-         method: "DELETE",
-         body: JSON.stringify({
-             answerId: payload.answerId,
-             memberQuestionId: payload.memberQuestionId || payload.questionAssignmentId
-         })
-     });
-}

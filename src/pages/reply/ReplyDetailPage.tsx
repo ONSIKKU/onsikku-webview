@@ -4,7 +4,6 @@ import type { Answer, Comment } from '@/utils/api';
 import {
   addReaction,
   createComment,
-  deleteAnswer,
   deleteComment,
   getMyPage,
   getQuestionInstanceDetails,
@@ -246,13 +245,11 @@ const FeedCard = ({
   answer,
   isMyAnswer,
   onEdit,
-  onDelete,
   onReaction,
 }: {
   answer: Answer;
   isMyAnswer: boolean;
   onEdit: () => void;
-  onDelete: () => void;
   onReaction: (type: 'LIKE' | 'ANGRY' | 'SAD' | 'FUNNY') => void;
 }) => {
   const role = answer.familyRole || answer.member?.familyRole;
@@ -294,14 +291,6 @@ const FeedCard = ({
               aria-label="edit answer"
             >
               <PencilIcon size={18} color="#9CA3AF" />
-            </button>
-            <button
-              type="button"
-              onClick={onDelete}
-              className="p-2 active:opacity-70"
-              aria-label="delete answer"
-            >
-              <TrashIcon size={18} color="#EF4444" />
             </button>
           </div>
         )}
@@ -553,39 +542,6 @@ export default function ReplyDetailPage() {
     }
   };
 
-  const handleDeleteAnswer = async (answer: Answer) => {
-    openModal({
-      type: 'confirm',
-      title: '답변 삭제',
-      content: '정말 이 답변을 삭제하시겠어요?',
-      onConfirm: async () => {
-        // questionInstanceId is the memberQuestionId for this page context
-        if (!questionInstanceId) {
-          openModal({ content: '질문 정보를 찾을 수 없습니다.' });
-          return;
-        }
-
-        try {
-          const token = await getItem('accessToken');
-          if (token) setAccessToken(token);
-
-          await deleteAnswer({
-            answerId: answer.answerId,
-            questionAssignmentId: questionInstanceId,
-            answerType: 'TEXT',
-            content: '',
-          });
-
-          await fetchData();
-          openModal({ content: '답변이 삭제되었습니다.' });
-        } catch (e: any) {
-          console.error('[답변 삭제 에러]', e);
-          openModal({ content: e?.message || '답변 삭제에 실패했습니다.' });
-        }
-      },
-    });
-  };
-
   const handleReaction = async (
     answer: Answer,
     reactionType: 'LIKE' | 'ANGRY' | 'SAD' | 'FUNNY',
@@ -813,7 +769,6 @@ export default function ReplyDetailPage() {
                       answer={answer}
                       isMyAnswer={isMyAnswer}
                       onEdit={() => handleEditAnswer(answer)}
-                      onDelete={() => handleDeleteAnswer(answer)}
                       onReaction={(type) => handleReaction(answer, type)}
                     />
                   );
