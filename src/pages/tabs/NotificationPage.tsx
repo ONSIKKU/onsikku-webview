@@ -42,22 +42,41 @@ export default function NotificationPage() {
       const token = await getItem('accessToken');
       if (token) setAccessToken(token);
 
-      const data = await getNotifications();
+      const response = await getNotifications(0, 50); // Fetch first 50 for now
+      const data = response.notificationHistorySlice.content;
       
       const mapped: Notification[] = data.map((item) => {
-        const { icon, text } = item.sender 
-          ? getRoleIconAndText(item.sender.familyRole, item.sender.gender)
+        const { icon, text } = item.member 
+          ? getRoleIconAndText(item.member.familyRole, getGenderFromRole(item.member.familyRole))
           : { icon: '📢', text: '알림' };
 
+        // Map backend types to UI types
+        let uiType: Notification['type'] = 'comment';
+        switch (item.notificationType) {
+          case 'COMMENT_ADDED': uiType = 'comment'; break;
+          case 'REACTION_ADDED': uiType = 'reaction'; break;
+          case 'ANSWER_ADDED': uiType = 'answer'; break;
+          case 'TODAY_TARGET_MEMBER_ANNOUNCED': uiType = 'all_answered'; break;
+          case 'TODAY_TARGET_MEMBER': uiType = 'new_question'; break;
+          default: uiType = 'comment'; break;
+        }
+
+        // Extract related ID from payload or deepLink
+        let relatedId = item.payload?.memberQuestionId || item.payload?.questionInstanceId;
+        if (!relatedId && item.deepLink) {
+           const url = new URL(item.deepLink, 'https://dummy.com');
+           relatedId = url.searchParams.get('questionInstanceId') || url.searchParams.get('questionAssignmentId');
+        }
+
         return {
-          id: item.id,
-          type: item.type.toLowerCase() as Notification['type'],
+          id: item.notificationHistoryId,
+          type: uiType,
           actor: text,
           actorAvatar: icon,
-          message: item.content,
-          time: formatTimeAgo(item.createdAt),
-          isRead: item.isRead,
-          relatedEntityId: item.relatedEntityId,
+          message: item.body || item.title,
+          time: formatTimeAgo(item.publishedAt),
+          isRead: !!(item.readAt || item.confirmedAt),
+          relatedEntityId: relatedId || undefined,
         };
       });
 

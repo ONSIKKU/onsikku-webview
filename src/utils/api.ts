@@ -633,42 +633,73 @@ export async function addReaction(payload: {
 
 // Notification types
 export type NotificationType =
-  | "COMMENT"
-  | "REACTION"
-  | "ANSWER"
-  | "ALL_ANSWERED"
-  | "NEW_QUESTION";
+  | "TODAY_TARGET_MEMBER"
+  | "TODAY_TARGET_MEMBER_ANNOUNCED"
+  | "ANSWER_ADDED"
+  | "KNOCK_KNOCK"
+  | "REACTION_ADDED"
+  | "COMMENT_ADDED"
+  | "MEMBER_JOINED"
+  | "WEEKLY_REPORT"
+  | "SYSTEM_NOTICE";
 
-export type NotificationItem = {
-  id: string;
-  type: NotificationType;
-  content: string;
-  isRead: boolean;
-  createdAt: string;
-  // 이동할 대상 ID (질문ID, 답변ID 등). 백엔드에서 내려준다고 가정.
-  relatedEntityId?: string; 
-  sender?: {
-    id: string;
-    familyRole: ApiFamilyRole;
-    gender: "MALE" | "FEMALE"; 
-  };
+export type NotificationHistory = {
+  notificationHistoryId: string;
+  member: ApiMember;
+  notificationType: NotificationType;
+  title: string;
+  body: string;
+  payload?: Record<string, string>;
+  deepLink?: string;
+  readAt: string | null;
+  confirmedAt: string | null;
+  publishedAt: string;
 };
 
-export async function getNotifications() {
-  const response = await apiFetch<NotificationItem[]>("/api/notifications", {
+export type NotificationHistoryResponse = {
+  notificationHistorySlice: {
+    content: NotificationHistory[];
+    size: number;
+    number: number;
+    first: boolean;
+    last: boolean;
+    numberOfElements: number;
+    empty: boolean;
+  };
+  unReadCount: number;
+};
+
+export async function getNotifications(page: number = 0, size: number = 20) {
+  const params = new URLSearchParams({
+    page: page.toString(),
+    size: size.toString(),
+  });
+  const response = await apiFetch<NotificationHistoryResponse>(`/api/notifications?${params.toString()}`, {
     method: "GET",
   });
   return response;
 }
 
 export async function readNotification(notificationId: string) {
-  return apiFetch<void>(`/api/notifications/${notificationId}/read`, {
+  return apiFetch<void>(`/api/notifications/${notificationId}/confirm`, {
+    method: "PATCH",
+  });
+}
+
+export async function markAllNotificationsRead() {
+  return apiFetch<void>("/api/notifications/read-all", {
     method: "PATCH",
   });
 }
 
 export async function deleteNotification(notificationId: string) {
   return apiFetch<void>(`/api/notifications/${notificationId}`, {
+    method: "DELETE",
+  });
+}
+
+export async function deleteAllNotifications() {
+  return apiFetch<void>("/api/notifications/all", {
     method: "DELETE",
   });
 }
