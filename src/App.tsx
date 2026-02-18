@@ -37,6 +37,7 @@ function SessionBridge() {
 
   useEffect(() => {
     setOnSessionExpired(() => {
+      navigate("/", { replace: true });
       openModal({
         type: 'alert',
         title: '세션 만료',

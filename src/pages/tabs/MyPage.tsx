@@ -5,6 +5,9 @@ import { useSignupStore } from '@/features/signup/signupStore';
 import type { MypageResponse } from '@/utils/api';
 import {
   deleteMember,
+  unblockUser,
+  getBlockedMembers,
+  type BlockedMember,
   getMyPage,
   logout,
   patchMyPage,
@@ -34,12 +37,15 @@ export default function MyPage() {
   const [loading, setLoading] = useState<boolean>(true);
   const [updating, setUpdating] = useState<boolean>(false);
   const [deleting, setDeleting] = useState<boolean>(false);
+  const [blockedMembers, setBlockedMembers] = useState<BlockedMember[]>([]);
+  const [loadingBlocks, setLoadingBlocks] = useState<boolean>(false);
 
   const fetchMyPage = useCallback(async () => {
     try {
       setLoading(true);
 
       const token = await getItem('accessToken');
+      console.log('[MyPage] accessToken:', token || '(none)');
       if (token) setAccessToken(token);
 
       const res = await getMyPage();
@@ -51,9 +57,22 @@ export default function MyPage() {
     }
   }, []);
 
+  const fetchBlockedMembers = useCallback(async () => {
+    try {
+      setLoadingBlocks(true);
+      const blocked = await getBlockedMembers();
+      setBlockedMembers(blocked || []);
+    } catch (e) {
+      console.error('[차단 목록 조회 에러]', e);
+    } finally {
+      setLoadingBlocks(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchMyPage();
-  }, [fetchMyPage]);
+    fetchBlockedMembers();
+  }, [fetchMyPage, fetchBlockedMembers]);
 
   const calculateAge = (birthDateString: string | undefined): number | null => {
     if (!birthDateString) return null;
@@ -90,6 +109,26 @@ export default function MyPage() {
               setUpdating(false);
             }
         }
+    });
+  };
+
+  const onUnblock = async (member: BlockedMember) => {
+    openModal({
+      type: 'confirm',
+      title: '차단 해제',
+      content: `${member.nickname} 님의 차단을 해제할까요?`,
+      onConfirm: async () => {
+        try {
+          setLoadingBlocks(true);
+          await unblockUser({ blockedId: member.blockedId });
+          await fetchBlockedMembers();
+          openModal({ content: '차단이 해제되었습니다.' });
+        } catch (e: any) {
+          openModal({ content: e?.message || '차단 해제에 실패했습니다.' });
+        } finally {
+          setLoadingBlocks(false);
+        }
+      },
     });
   };
 
@@ -361,6 +400,37 @@ export default function MyPage() {
                   </button>
                 </div>
               </div>
+            </div>
+          </div>
+
+          {/* 차단한 사용자 */}
+          <div className="bg-white w-full p-6 rounded-3xl shadow-sm">
+            <div className="text-lg font-bold text-gray-900 mb-4">차단한 사용자</div>
+            <div className="gap-3 flex flex-col">
+              {blockedMembers.length === 0 ? (
+                <div className="text-sm text-gray-500 text-center py-3">
+                  차단한 사용자가 없습니다.
+                </div>
+              ) : (
+                blockedMembers.map((member, index) => (
+                  <div
+                    key={member.blockedId}
+                    className={`flex-row items-center justify-between py-2 flex ${
+                      index !== blockedMembers.length - 1 ? 'border-b border-gray-100' : ''
+                    }`}
+                  >
+                    <span className="font-sans text-gray-700">{member.nickname}</span>
+                    <button
+                      type="button"
+                      onClick={() => onUnblock(member)}
+                      disabled={loadingBlocks}
+                      className="px-3 py-2 rounded-xl bg-gray-100 active:scale-95 transition-transform disabled:opacity-50 font-semibold text-sm text-gray-600"
+                    >
+                      차단 해제
+                    </button>
+                  </div>
+                ))
+              )}
             </div>
           </div>
 

@@ -74,7 +74,7 @@ export default function NotificationPage() {
         }
 
         return {
-          id: item.notificationHistoryId,
+          id: item.id,
           type: uiType,
           actor: text,
           actorAvatar: icon,

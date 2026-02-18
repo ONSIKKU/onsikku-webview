@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { setItem } from "@/utils/AsyncStorage";
-import { setAccessToken } from "@/utils/api";
+import { apiFetch, setAccessToken, type AuthResponse } from "@/utils/api";
 
 const API_BASE =
   (import.meta.env.VITE_API_BASE as string | undefined) || "https://api.onsikku.xyz";
@@ -23,30 +23,74 @@ export default function KakaoLoginCallback() {
           throw new Error("인가 코드가 없습니다.");
         }
 
-        const res = await fetch(`${API_BASE}/api/auth/kakao`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ code }),
-        });
+        const redirectRes = await fetch(
+          `${API_BASE}/api/auth/kakao/redirect?code=${encodeURIComponent(code)}`,
+          {
+            method: "GET",
+            redirect: "manual",
+          },
+        );
 
-        if (!res.ok) {
-          const txt = await res.text();
-          throw new Error(`로그인 실패(${res.status}) ${txt}`);
+        let ticket: string | null = null;
+
+        if (redirectRes.status >= 300 && redirectRes.status < 400) {
+          const location = redirectRes.headers.get("location");
+          if (location) {
+            try {
+              ticket = new URL(location, API_BASE).searchParams.get("ticket");
+            } catch {
+              ticket = null;
+            }
+          }
+        } else if (redirectRes.status === 200 || redirectRes.status === 204) {
+          const redirectText = await redirectRes.text().catch(() => "");
+          if (redirectText) {
+            try {
+              const parsed = JSON.parse(redirectText);
+              const payload = parsed?.result ?? parsed;
+              ticket = payload?.ticket ?? null;
+            } catch {
+              // ignore
+            }
+          }
         }
 
-        // { code, message, result: { accessToken, registrationToken, registered } }
-        const json = await res.json();
-        const result = json?.result ?? json; // 혹시 래핑 안 된 경우 대비
-        const { accessToken, registered } = result;
+        if (!ticket) {
+          throw new Error("카카오 티켓을 발급받지 못했습니다.");
+        }
+
+        const payload = (await apiFetch<AuthResponse>(
+          `/api/auth/exchange?ticket=${encodeURIComponent(ticket)}`,
+          {
+            method: "GET",
+          },
+        )) as AuthResponse;
+
+        const { accessToken, refreshToken, registrationToken } = payload;
+        const isRegistered =
+          payload.isRegistered ??
+          (payload as { registered?: boolean }).registered ??
+          false;
 
         if (accessToken) {
           console.log("🔓 Kakao Access Token:", accessToken);
           await setItem("accessToken", accessToken);
-          setAccessToken(accessToken); // 메모리상 토큰 즉시 업데이트
+          setAccessToken(accessToken);
         }
 
-        // 4) 라우팅 분기
-        if (registered) {
+        if (refreshToken) {
+          await setItem("refreshToken", refreshToken);
+        }
+
+        if (registrationToken) {
+          await setItem("registrationToken", registrationToken);
+        }
+
+        if (!accessToken && !registrationToken) {
+          throw new Error("토큰을 받지 못했습니다.");
+        }
+
+        if (isRegistered) {
           navigate("/home", { replace: true });
         } else {
           navigate("/signup/role", { replace: true });

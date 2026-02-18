@@ -103,11 +103,12 @@ export default function TodayQuestion({
 
   return (
     <div className="bg-white w-full p-6 rounded-3xl shadow-sm">
-      <div className="flex flex-col items-center mb-6 px-2">
+      <div className="flex flex-col w-full items-start mb-6 px-2">
         <div
-          className={`font-sans text-xl font-bold leading-8 text-center ${
+          className={`w-full min-w-0 font-sans text-xl font-bold leading-8 text-center break-words whitespace-pre-wrap ${
             hasNoQuestion ? 'text-gray-400' : 'text-gray-900'
           }`}
+          style={{ wordBreak: 'keep-all', overflowWrap: 'break-word' }}
         >
           <span className="text-orange-500">Q. </span>
           {hasNoQuestion ? '질문이 없습니다' : question}

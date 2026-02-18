@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getItem } from '@/utils/AsyncStorage';
+import { getItem, setItem } from '@/utils/AsyncStorage';
 import { getMyPage, patchMyPage, setAccessToken } from '@/utils/api';
 import { ensurePushPermissionAndRegister, unregisterPushNotifications } from '@/utils/pushNotifications';
 import { genderToKo, getApiFamilyRole } from '@/utils/labels';
@@ -51,7 +51,12 @@ export default function MyPageEdit() {
           setRoleCategory('GRANDPARENT');
 
         setNickname(res.member.nickname || '');
-        setIsAlarmEnabled(res.member.alarmEnabled ?? true);
+        const storedAlarmPref = await getItem('alarmEnabled');
+        if (storedAlarmPref === 'true' || storedAlarmPref === 'false') {
+          setIsAlarmEnabled(storedAlarmPref === 'true');
+        } else {
+          setIsAlarmEnabled(res.member.alarmEnabled ?? true);
+        }
         setIsFamilyInviteEnabled(res.family.familyInviteEnabled ?? true);
       } catch (e: any) {
         console.error(e?.message || '정보를 불러오지 못했습니다');
@@ -80,22 +85,26 @@ export default function MyPageEdit() {
 
       const apiRole = getApiFamilyRole(roleCategory, gender);
 
+      if (isAlarmEnabled) {
+        const granted = await ensurePushPermissionAndRegister(false);
+        if (!granted) {
+          openModal({
+            content: '알림 권한이 필요합니다. 기기 설정에서 허용 후 다시 시도해주세요.',
+          });
+          setSaving(false);
+          return;
+        }
+      } else {
+        await unregisterPushNotifications();
+      }
+
       await patchMyPage({
         birthDate: birthDate,
         familyRole: apiRole,
         nickname: nickname || undefined,
-        isAlarmEnabled,
         isFamilyInviteEnabled,
       });
-
-      // ✅ 알림 설정에 따라 네이티브 푸시 권한/등록 처리
-      // - iOS/Android 네이티브에서만 동작합니다.
-      // - 백엔드가 알림을 보내려면 디바이스 토큰이 서버에 등록되어 있어야 합니다.
-      if (isAlarmEnabled) {
-        await ensurePushPermissionAndRegister(false);
-      } else {
-        await unregisterPushNotifications();
-      }
+      await setItem('alarmEnabled', String(isAlarmEnabled));
 
       openModal({ content: '프로필이 수정되었습니다.' });
       navigate(-1);

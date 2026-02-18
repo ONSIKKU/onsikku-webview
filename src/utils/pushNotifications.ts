@@ -94,7 +94,7 @@ export async function initPushNotifications(options: InitPushOptions = {}) {
  * @returns permission granted 여부
  */
 export async function ensurePushPermissionAndRegister(confirmBeforeRequest = true): Promise<boolean> {
-  if (!Capacitor.isNativePlatform()) return false;
+  if (!Capacitor.isNativePlatform()) return true;
 
   let status = await PushNotifications.checkPermissions();
 
@@ -136,7 +136,15 @@ export async function unregisterPushNotifications() {
 
   // (선택) 서버에서도 토큰 삭제 요청
   try {
-    await deletePushToken();
+    const storedToken = await getStoredPushToken();
+    await deletePushToken(
+      storedToken
+        ? {
+            token: storedToken,
+            platform: Capacitor.getPlatform(),
+          }
+        : undefined
+    );
   } catch (e) {
     // 서버가 DELETE를 지원하지 않거나 엔드포인트가 다를 수 있음 → 무시
     console.warn('[Push] failed to delete token on server:', e);

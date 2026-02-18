@@ -11,6 +11,7 @@ export function usePushNotifications() {
 
   useEffect(() => {
     initPushNotifications({
+      confirmBeforeRequest: false,
       onActionPerformed: (event) => {
         const data = event?.notification?.data as any;
 

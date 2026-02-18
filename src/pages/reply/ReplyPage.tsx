@@ -129,7 +129,10 @@ export default function ReplyPage() {
 
         {/* Question */}
         <div className="relative items-center mb-6 mt-2 px-2">
-          <div className="font-sans text-2xl font-bold leading-9 text-center text-gray-900">
+          <div
+            className="w-full min-w-0 font-sans text-2xl font-bold leading-9 text-center text-gray-900 break-words whitespace-pre-wrap"
+            style={{ wordBreak: 'keep-all', overflowWrap: 'break-word' }}
+          >
             <span className="text-orange-500">Q. </span>
             {question}
           </div>

@@ -126,7 +126,7 @@ export default function FamilyCodePage() {
                 placeholder="예) 행복한 우리집"
                 className="w-full rounded-2xl border-2 border-gray-100 bg-gray-50 px-5 py-4 text-lg font-medium shadow-sm outline-none transition-all focus:border-onsikku-dark-orange focus:bg-white focus:ring-1 focus:ring-onsikku-dark-orange placeholder:text-gray-400"
               />
-              <p className="text-xs text-gray-400 pl-2">나중에 언제든 변경할 수 있어요.</p>
+              {/* <p className="text-xs text-gray-400 pl-2">나중에 언제든 변경할 수 있어요.</p> */}
             </div>
           ) : (
             <div className="space-y-3 animate-fade-in-up">

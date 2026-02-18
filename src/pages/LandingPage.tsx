@@ -45,7 +45,7 @@ export default function LandingPage() {
         <div className="text-center">
           <h1 className="font-bold text-4xl text-gray-900 mb-3 tracking-tight">온식구</h1>
           <p className="font-sans text-lg text-gray-600 leading-relaxed">
-            매일 9분,
+            하루 5분,
             <br />
             가족과 더 가까워지는 시간
           </p>

@@ -1,15 +1,29 @@
-import { useEffect, useMemo, useState } from 'react';
+import {
+  type MouseEvent,
+  type PointerEvent,
+  type TouchEvent,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import type { Answer, Comment } from '@/utils/api';
 import {
   addReaction,
+  blockUser,
   createComment,
+  deleteReaction,
   deleteComment,
+  getBlockedMembers,
   getMyPage,
   getQuestionInstanceDetails,
+  reportContent,
   setAccessToken,
   updateAnswer,
   updateComment,
+  unblockUser,
+  type ReportReason,
+  type ReportTargetType,
 } from '@/utils/api';
 import { getItem } from '@/utils/AsyncStorage';
 import { getRoleIconAndText } from '@/utils/labels';
@@ -220,23 +234,61 @@ const getContentText = (content: any): string => {
   }
 };
 
+const REPORT_REASON_OPTIONS: Array<{ value: ReportReason; label: string }> = [
+  { value: 'SPAM', label: '스팸 및 홍보성 콘텐츠' },
+  { value: 'INAPPROPRIATE_CONTENT', label: '부적절한 콘텐츠 (음란물 등)' },
+  { value: 'ABUSIVE_LANGUAGE', label: '욕설 및 비방, 혐오 표현' },
+  { value: 'PRIVACY_VIOLATION', label: '개인정보 노출' },
+  { value: 'OTHER', label: '기타' },
+];
+
+type ReactionKind = 'LIKE' | 'ANGRY' | 'SAD' | 'FUNNY';
+
+type ReactionEvent =
+  | MouseEvent<HTMLButtonElement>
+  | TouchEvent<HTMLButtonElement>
+  | PointerEvent<HTMLButtonElement>;
+
 const ReactionButton = ({
   icon,
   count,
+  isActive,
   onPress,
+  disabled,
 }: {
   icon: string;
   count: number;
+  isActive: boolean;
   onPress: () => void;
+  disabled: boolean;
 }) => {
+  const handlePress = (event: ReactionEvent) => {
+    event.preventDefault();
+    if (!disabled) {
+      onPress();
+    }
+  };
+
   return (
     <button
       type="button"
-      onClick={onPress}
-      className="flex-row items-center gap-1 flex active:opacity-70"
+      onClick={handlePress}
+      onTouchEnd={handlePress}
+      onPointerUp={handlePress}
+      style={{ pointerEvents: 'auto' }}
+      disabled={disabled}
+      className={`flex-row items-center gap-1 flex ${
+        disabled ? 'opacity-50 cursor-not-allowed' : 'active:opacity-70'
+      } ${
+        isActive ? 'text-orange-500' : 'text-gray-500'
+      }`}
     >
       <span className="text-base">{icon}</span>
-      <span className="font-sans text-sm text-gray-500">{count}</span>
+      <span
+        className={`font-sans text-sm ${isActive ? 'text-orange-500' : 'text-gray-500'}`}
+      >
+        {count}
+      </span>
     </button>
   );
 };
@@ -246,11 +298,23 @@ const FeedCard = ({
   isMyAnswer,
   onEdit,
   onReaction,
+  onReport,
+  onBlock,
+  blockLabel,
+  disableReaction,
+  canReport,
+  canBlock,
 }: {
   answer: Answer;
   isMyAnswer: boolean;
   onEdit: () => void;
-  onReaction: (type: 'LIKE' | 'ANGRY' | 'SAD' | 'FUNNY') => void;
+  onReaction: (type: ReactionKind) => void;
+  onReport: () => void;
+  onBlock: () => void;
+  blockLabel: string;
+  disableReaction: boolean;
+  canReport: boolean;
+  canBlock: boolean;
 }) => {
   const role = answer.familyRole || answer.member?.familyRole;
   const gender = answer.gender || answer.member?.gender;
@@ -282,16 +346,38 @@ const FeedCard = ({
           </div>
         </div>
 
-        {isMyAnswer && (
+        {(isMyAnswer || canReport || canBlock) && (
           <div className="flex flex-row gap-1">
-            <button
-              type="button"
-              onClick={onEdit}
-              className="p-2 active:opacity-70"
-              aria-label="edit answer"
-            >
-              <PencilIcon size={18} color="#9CA3AF" />
-            </button>
+            {isMyAnswer && (
+              <button
+                type="button"
+                onClick={onEdit}
+                className="p-2 active:opacity-70"
+                aria-label="edit answer"
+              >
+                <PencilIcon size={18} color="#9CA3AF" />
+              </button>
+            )}
+            {canReport && (
+              <button
+                type="button"
+                onClick={onReport}
+                className="text-xs px-2 py-2 rounded-xl bg-gray-100 text-gray-600 font-semibold font-sans active:opacity-70"
+                aria-label="report answer"
+              >
+                신고
+              </button>
+            )}
+            {canBlock && (
+              <button
+                type="button"
+                onClick={onBlock}
+                className="text-xs px-2 py-2 rounded-xl bg-red-50 text-red-600 font-semibold font-sans active:opacity-70"
+                aria-label="block user"
+              >
+                {blockLabel}
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -308,6 +394,8 @@ const FeedCard = ({
             key={reaction.type}
             icon={reaction.icon}
             count={reaction.count || 0}
+            isActive={answer.myReaction === reaction.type}
+            disabled={disableReaction}
             onPress={() => onReaction(reaction.type)}
           />
         ))}
@@ -323,6 +411,11 @@ const CommentCard = ({
   onEdit,
   onDelete,
   onReply,
+  onReport,
+  onBlock,
+  blockLabel,
+  canReport,
+  canBlock,
 }: {
   comment: Comment;
   isMyComment: boolean;
@@ -330,6 +423,11 @@ const CommentCard = ({
   onEdit: () => void;
   onDelete: () => void;
   onReply: () => void;
+  onReport: () => void;
+  onBlock: () => void;
+  blockLabel: string;
+  canReport: boolean;
+  canBlock: boolean;
 }) => {
   const role = comment.member?.familyRole ?? comment.familyRole;
   const gender = comment.member?.gender ?? comment.gender;
@@ -363,6 +461,26 @@ const CommentCard = ({
             </div>
 
             <div className="flex-row items-center gap-3 flex">
+              {canReport && (
+                <button
+                  type="button"
+                  onClick={onReport}
+                  className="text-xs px-2 py-1 rounded-lg bg-gray-100 text-gray-600 font-semibold font-sans active:opacity-70"
+                  aria-label="report comment"
+                >
+                  신고
+                </button>
+              )}
+              {canBlock && (
+                <button
+                  type="button"
+                  onClick={onBlock}
+                  className="text-xs px-2 py-1 rounded-lg bg-red-50 text-red-600 font-semibold font-sans active:opacity-70"
+                  aria-label="block user"
+                >
+                  {blockLabel}
+                </button>
+              )}
               {isMyComment && (
                 <>
                   <button
@@ -429,6 +547,20 @@ export default function ReplyDetailPage() {
   const [questionSentAt, setQuestionSentAt] = useState<string | null>(null);
 
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [blockedMemberIds, setBlockedMemberIds] = useState<Set<string>>(
+    new Set(),
+  );
+  const [reactionLoadingIds, setReactionLoadingIds] = useState<Set<string>>(
+    new Set(),
+  );
+
+  const [pendingReport, setPendingReport] = useState<{
+    id: string;
+    type: ReportTargetType;
+    name: string;
+  } | null>(null);
+  const [selectedReportReason, setSelectedReportReason] =
+    useState<ReportReason>('OTHER');
 
   // Edit Answer
   const [editingAnswer, setEditingAnswer] = useState<Answer | null>(null);
@@ -489,6 +621,13 @@ export default function ReplyDetailPage() {
 
       const commentList = questionData.questionDetails?.comments || [];
       setComments(commentList as Comment[]);
+
+      try {
+        const blockedList = await getBlockedMembers();
+        setBlockedMemberIds(new Set(blockedList.map((item) => item.blockedId)));
+      } catch (error) {
+        console.warn('[차단 목록 조회 에러]', error);
+      }
     } catch (e: any) {
       console.error('[답변 조회 에러]', e);
       setError(e?.message || '답변을 불러오는데 실패했습니다.');
@@ -544,13 +683,49 @@ export default function ReplyDetailPage() {
 
   const handleReaction = async (
     answer: Answer,
-    reactionType: 'LIKE' | 'ANGRY' | 'SAD' | 'FUNNY',
+    reactionType: ReactionKind,
   ) => {
+    const answerId = answer.answerId;
     try {
+      if (!answerId) {
+        openModal({ content: '반응을 처리할 답변 정보를 찾지 못했습니다.' });
+        return;
+      }
+      if (reactionLoadingIds.has(answerId)) {
+        return;
+      }
+
+      setReactionLoadingIds((prev) => {
+        const next = new Set(prev);
+        next.add(answerId);
+        return next;
+      });
+
+      const currentFromState =
+        answers.find((item) => item.answerId === answerId)?.myReaction || answer.myReaction;
+      const optimisticReaction: ReactionKind | undefined =
+        currentFromState === reactionType ? undefined : reactionType;
+
+      setAnswers((prev) =>
+        prev.map((item) =>
+          item.answerId === answerId
+            ? { ...item, myReaction: optimisticReaction }
+            : item,
+        ),
+      );
+
       const token = await getItem('accessToken');
       if (token) setAccessToken(token);
 
-      await addReaction({ answerId: answer.answerId, reactionType });
+      if (currentFromState) {
+        await deleteReaction({ answerId });
+
+        if (currentFromState !== reactionType) {
+          await addReaction({ answerId, reactionType });
+        }
+      } else {
+        await addReaction({ answerId, reactionType });
+      }
 
       const questionData = await getQuestionInstanceDetails(questionInstanceId);
       const answerList = questionData.questionDetails?.answers || [];
@@ -560,9 +735,121 @@ export default function ReplyDetailPage() {
       }));
       setAnswers(convertedAnswers);
     } catch (e: any) {
+      setAnswers((prev) =>
+        prev.map((item) =>
+          item.answerId === answer.answerId
+            ? {
+                ...item,
+                myReaction: answer.myReaction,
+              }
+            : item,
+        ),
+      );
       console.error('[반응 추가 에러]', e);
       openModal({ content: e?.message || '반응을 남기지 못했습니다.' });
+    } finally {
+      setReactionLoadingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(answer.answerId);
+        return next;
+      });
     }
+  };
+
+  const getDisplayName = (memberRole?: string, gender?: string) =>
+    getRoleIconAndText(memberRole as any, gender as any).text;
+
+  const getBlockedLabel = (memberId: string | undefined) => {
+    if (!memberId) return '차단';
+    return blockedMemberIds.has(memberId) ? '차단 해제' : '차단';
+  };
+
+  const handleOpenReport = ({
+    id,
+    type,
+    name,
+  }: {
+    id: string;
+    type: ReportTargetType;
+    name: string;
+  }) => {
+    setPendingReport({ id, type, name });
+    setSelectedReportReason('OTHER');
+  };
+
+  const handleSubmitReport = async () => {
+    if (!pendingReport) return;
+
+    try {
+      const token = await getItem('accessToken');
+      if (token) setAccessToken(token);
+
+      await reportContent({
+        targetId: pendingReport.id,
+        targetType: pendingReport.type,
+        reason: selectedReportReason,
+      });
+
+      openModal({ content: '신고가 접수되었습니다.' });
+      setPendingReport(null);
+    } catch (e: any) {
+      console.error('[신고 에러]', e);
+      openModal({ content: e?.message || '신고 처리에 실패했습니다.' });
+    }
+  };
+
+  const handleCloseReport = () => {
+    setPendingReport(null);
+  };
+
+  const handleToggleBlock = async (memberId: string, label: string) => {
+    const isBlocked = blockedMemberIds.has(memberId);
+    openModal({
+      type: 'confirm',
+      title: isBlocked ? '차단 해제' : '차단',
+      content: isBlocked
+        ? `${label} 님의 차단을 해제할까요?`
+        : `${label} 님을 차단하면 이 사용자의 글이 안 보일 수 있어요.`,
+      onConfirm: async () => {
+        try {
+          const token = await getItem('accessToken');
+          if (token) setAccessToken(token);
+
+          if (isBlocked) {
+            await unblockUser({ blockedId: memberId });
+            setBlockedMemberIds((prev) => {
+              const next = new Set(prev);
+              next.delete(memberId);
+              return next;
+            });
+            openModal({ content: '차단을 해제했습니다.' });
+          } else {
+            await blockUser({ blockedId: memberId });
+            setBlockedMemberIds((prev) => {
+              const next = new Set(prev);
+              next.add(memberId);
+              return next;
+            });
+            setAnswers((prev) =>
+              prev.filter(
+                (answer) =>
+                  answer.memberId !== memberId &&
+                  answer.member?.id !== memberId,
+              ),
+            );
+            setComments((prev) =>
+              prev.filter(
+                (comment) => comment.member?.id !== memberId,
+              ),
+            );
+            openModal({ content: '차단했습니다.' });
+          }
+        } catch (e: any) {
+          console.error('[차단 처리 에러]', e);
+          openModal({ content: e?.message || '차단 처리에 실패했습니다.' });
+        }
+      },
+    });
   };
 
   const handleCreateComment = async () => {
@@ -681,22 +968,77 @@ export default function ReplyDetailPage() {
             onEdit={() => handleEditComment(rootComment)}
             onDelete={() => handleDeleteComment(rootComment)}
             onReply={() => setReplyingToComment(rootComment)}
+            canReport={!isMyRootComment && Boolean(rootComment.id && rootComment.member?.id)}
+            canBlock={
+              !isMyRootComment && Boolean(rootComment.member?.id)
+            }
+            onReport={() => {
+              if (!rootComment.id || !rootComment.member?.id) return;
+              handleOpenReport({
+                id: rootComment.id,
+                type: 'COMMENT',
+                name: getDisplayName(
+                  rootComment.member?.familyRole,
+                  rootComment.member?.gender,
+                ),
+              });
+            }}
+            onBlock={() => {
+              if (!rootComment.member?.id) return;
+              handleToggleBlock(
+                rootComment.member.id,
+                getDisplayName(
+                  rootComment.member?.familyRole,
+                  rootComment.member?.gender,
+                ),
+              );
+            }}
+            blockLabel={getBlockedLabel(rootComment.member?.id)}
           />
 
           {childComments.map((childComment) => {
             const isMyChildComment = currentUserId === childComment.member?.id;
-            return (
-              <CommentCard
-                key={childComment.id}
-                comment={childComment}
-                isMyComment={isMyChildComment}
-                isReply={true}
-                onEdit={() => handleEditComment(childComment)}
-                onDelete={() => handleDeleteComment(childComment)}
-                onReply={() => setReplyingToComment(childComment)}
-              />
-            );
-          })}
+              return (
+                <CommentCard
+                  key={childComment.id}
+                  comment={childComment}
+                  isMyComment={isMyChildComment}
+                  isReply={true}
+                  onEdit={() => handleEditComment(childComment)}
+                  onDelete={() => handleDeleteComment(childComment)}
+                  onReply={() => setReplyingToComment(childComment)}
+                  canReport={
+                    !isMyChildComment &&
+                    Boolean(childComment.id && childComment.member?.id)
+                  }
+                  canBlock={
+                    !isMyChildComment && Boolean(childComment.member?.id)
+                  }
+                  onReport={() => {
+                    if (!childComment.id || !childComment.member?.id) return;
+                    handleOpenReport({
+                      id: childComment.id,
+                      type: 'COMMENT',
+                      name: getDisplayName(
+                        childComment.member?.familyRole,
+                        childComment.member?.gender,
+                      ),
+                    });
+                  }}
+                  onBlock={() => {
+                    if (!childComment.member?.id) return;
+                    handleToggleBlock(
+                      childComment.member.id,
+                      getDisplayName(
+                        childComment.member?.familyRole,
+                        childComment.member?.gender,
+                      ),
+                    );
+                  }}
+                  blockLabel={getBlockedLabel(childComment.member?.id)}
+                />
+              );
+            })}
         </div>
       );
     });
@@ -731,7 +1073,10 @@ export default function ReplyDetailPage() {
               </div>
             </div>
           )}
-          <div className="font-sans text-2xl font-bold leading-9 text-center text-gray-900">
+          <div
+            className="w-full min-w-0 font-sans text-2xl font-bold leading-9 text-center text-gray-900 break-words whitespace-pre-wrap"
+            style={{ wordBreak: 'keep-all', overflowWrap: 'break-word' }}
+          >
             <span className="text-orange-500">Q. </span>
             {questionContent || question}
           </div>
@@ -763,6 +1108,11 @@ export default function ReplyDetailPage() {
               ) : (
                 answers.map((answer) => {
                   const isMyAnswer = currentUserId === answer.memberId;
+                  const answerMemberId = answer.memberId || answer.member?.id;
+                  const authorLabel = getDisplayName(
+                    answer.member?.familyRole,
+                    answer.member?.gender,
+                  );
                   return (
                     <FeedCard
                       key={answer.id || answer.answerId}
@@ -770,6 +1120,24 @@ export default function ReplyDetailPage() {
                       isMyAnswer={isMyAnswer}
                       onEdit={() => handleEditAnswer(answer)}
                       onReaction={(type) => handleReaction(answer, type)}
+                      disableReaction={answer.answerId
+                        ? reactionLoadingIds.has(answer.answerId)
+                        : false}
+                      canReport={!isMyAnswer && Boolean(answer.answerId)}
+                      canBlock={!isMyAnswer && Boolean(answerMemberId)}
+                      onReport={() => {
+                        if (!answer.answerId) return;
+                        handleOpenReport({
+                          id: answer.answerId,
+                          type: 'ANSWER',
+                          name: authorLabel,
+                        });
+                      }}
+                      onBlock={() => {
+                        if (!answerMemberId) return;
+                        handleToggleBlock(answerMemberId, authorLabel);
+                      }}
+                      blockLabel={getBlockedLabel(answerMemberId)}
                     />
                   );
                 })
@@ -778,7 +1146,7 @@ export default function ReplyDetailPage() {
           )}
         </div>
 
-        {/* Comments */}
+      {/* Comments */}
         {!loading && !error && (
           <div className="mt-4 mb-5">
             <div className="py-2 mb-2">
@@ -800,6 +1168,57 @@ export default function ReplyDetailPage() {
               ) : (
                 renderComments()
               )}
+            </div>
+          </div>
+        )}
+        {pendingReport && (
+          <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-5">
+            <div className="bg-white rounded-2xl w-full max-w-md p-5 shadow-xl">
+              <div className="font-sans text-lg font-bold text-gray-900 mb-1">
+                신고하기
+              </div>
+              <div className="font-sans text-sm text-gray-500 mb-4">
+                대상:{' '}
+                <span className="font-semibold text-gray-900">
+                  {pendingReport.name}
+                </span>
+                {' '}
+                {pendingReport.type === 'ANSWER' ? '답변' : '댓글'}
+              </div>
+              <div className="gap-2 flex flex-col">
+                {REPORT_REASON_OPTIONS.map((option) => (
+                  <button
+                    type="button"
+                    key={option.value}
+                    onClick={() => setSelectedReportReason(option.value)}
+                    className={`w-full text-left px-3 py-3 rounded-xl border text-sm ${
+                      selectedReportReason === option.value
+                        ? 'bg-orange-50 border-orange-300 text-orange-700'
+                        : 'bg-white border-gray-200 text-gray-700'
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+              <div className="flex-row justify-end gap-3 mt-6 flex">
+                <button
+                  type="button"
+                  onClick={handleCloseReport}
+                  className="px-4 py-2.5 rounded-lg bg-gray-100 active:opacity-70"
+                >
+                  <span className="font-sans text-gray-700 font-medium">
+                    취소
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSubmitReport}
+                  className="px-4 py-2.5 rounded-lg bg-orange-500 active:opacity-70"
+                >
+                  <span className="font-sans text-white font-medium">신고</span>
+                </button>
+              </div>
             </div>
           </div>
         )}
