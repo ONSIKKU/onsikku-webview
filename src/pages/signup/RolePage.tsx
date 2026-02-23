@@ -47,8 +47,8 @@ export default function RolePage() {
         <SignUpHeader
           title="어떤 역할을 맡고 계신가요?"
           description="가족 내 역할을 선택하면 맞춤 질문이 제공돼요."
-          currentStep={1}
-          totalSteps={3}
+          currentStep={2}
+          totalSteps={4}
           showBackButton
         />
 

@@ -30,6 +30,7 @@ export default function HistoryPage() {
   const [tempMonth, setTempMonth] = useState(selectedMonth);
 
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
+  const [answeredOnly, setAnsweredOnly] = useState(false);
 
   // Ensure URL always has params (for initial load consistency)
   useEffect(() => {
@@ -176,6 +177,10 @@ export default function HistoryPage() {
     selectedYear > currentYear ||
     (selectedYear === currentYear && selectedMonth >= currentMonth);
 
+  const displayedQuestions = answeredOnly
+    ? questions.filter((q) => q.state === 'ANSWERED')
+    : questions;
+
   return (
     <div className="min-h-screen bg-orange-50 pb-10">
       <div className="mx-auto w-full px-5 pt-8 flex flex-col gap-6">
@@ -201,28 +206,44 @@ export default function HistoryPage() {
               지난 질문들
             </div>
 
-            <button
-              type="button"
-              onClick={() =>
-                setSortOrder((prev) =>
-                  prev === 'newest' ? 'oldest' : 'newest',
-                )
-              }
-              className="flex flex-row items-center bg-white px-3 py-1.5 rounded-xl border border-gray-100 shadow-sm active:scale-95 transition-transform"
-            >
-              {sortOrder === 'newest' ? (
-                <IoArrowDownOutline size={14} className="text-gray-600" />
-              ) : (
-                <IoArrowUpOutline size={14} className="text-gray-600" />
-              )}
-              <div className="font-sans text-sm font-medium text-gray-600 ml-1.5">
-                {sortOrder === 'newest' ? '최신순' : '오래된순'}
-              </div>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setAnsweredOnly((prev) => !prev)}
+                className={`flex flex-row items-center px-3 py-1.5 rounded-xl border shadow-sm active:scale-95 transition-transform ${
+                  answeredOnly
+                    ? 'bg-onsikku-dark-orange text-white border-onsikku-dark-orange'
+                    : 'bg-white text-gray-600 border-gray-100'
+                }`}
+              >
+                <div className="font-sans text-sm font-medium">
+                  답변 완료만
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setSortOrder((prev) =>
+                    prev === 'newest' ? 'oldest' : 'newest',
+                  )
+                }
+                className="flex flex-row items-center bg-white px-3 py-1.5 rounded-xl border border-gray-100 shadow-sm active:scale-95 transition-transform"
+              >
+                {sortOrder === 'newest' ? (
+                  <IoArrowDownOutline size={14} className="text-gray-600" />
+                ) : (
+                  <IoArrowUpOutline size={14} className="text-gray-600" />
+                )}
+                <div className="font-sans text-sm font-medium text-gray-600 ml-1.5">
+                  {sortOrder === 'newest' ? '최신순' : '오래된순'}
+                </div>
+              </button>
+            </div>
           </div>
 
           <QuestionList
-            questions={questions}
+            questions={displayedQuestions}
             loading={loading}
             onQuestionPress={handleQuestionPress}
           />

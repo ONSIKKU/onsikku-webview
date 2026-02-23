@@ -4,12 +4,14 @@ interface NotificationSummaryProps {
   unreadCount: number;
   totalCount: number;
   onMarkAllRead: () => void;
+  onDeleteAll: () => void;
 }
 
 export default function NotificationSummary({
   unreadCount,
   totalCount,
   onMarkAllRead,
+  onDeleteAll,
 }: NotificationSummaryProps) {
   return (
     <div className="bg-white w-full p-6 rounded-2xl shadow-sm">
@@ -24,15 +26,27 @@ export default function NotificationSummary({
           )}
         </div>
 
-        {unreadCount > 0 && (
-          <button
-            type="button"
-            onClick={onMarkAllRead}
-            className="active:opacity-70"
-          >
-            <div className="text-sm text-orange-500">✓ 모두 읽음</div>
-          </button>
-        )}
+        <div className="flex items-center gap-3">
+          {unreadCount > 0 && (
+            <button
+              type="button"
+              onClick={onMarkAllRead}
+              className="active:opacity-70"
+            >
+              <div className="text-sm text-orange-500">✓ 모두 읽음</div>
+            </button>
+          )}
+
+          {totalCount > 0 && (
+            <button
+              type="button"
+              onClick={onDeleteAll}
+              className="active:opacity-70"
+            >
+              <div className="text-sm text-red-500">전체 삭제</div>
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="text-sm text-gray-500 mt-2">

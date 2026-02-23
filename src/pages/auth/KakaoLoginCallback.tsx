@@ -93,7 +93,7 @@ export default function KakaoLoginCallback() {
         if (isRegistered) {
           navigate("/home", { replace: true });
         } else {
-          navigate("/signup/role", { replace: true });
+          navigate("/signup/agree", { replace: true });
         }
       } catch (e: any) {
         console.error("Kakao Login Error:", e);

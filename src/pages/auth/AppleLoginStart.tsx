@@ -132,7 +132,7 @@ export default function AppleLoginStart() {
         if (isRegistered) {
           navigate('/home', { replace: true });
         } else {
-          navigate('/signup/role', { replace: true });
+          navigate('/signup/agree', { replace: true });
         }
         return;
       } catch (e: any) {

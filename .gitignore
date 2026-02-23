@@ -24,3 +24,19 @@ dist-ssr
 *.sw?
 
 .env
+
+# Mobile (Android/iOS) sensitive & local files
+android/local.properties
+android/app/google-services.json
+ios/App/App/GoogleService-Info.plist
+*.jks
+*.keystore
+*.p12
+*.mobileprovision
+
+# Mobile generated/build artifacts
+android/.gradle/
+android/**/build/
+ios/**/Pods/
+ios/**/xcuserdata/
+ios/**/DerivedData/

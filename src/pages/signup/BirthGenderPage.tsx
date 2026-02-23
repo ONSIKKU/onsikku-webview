@@ -79,8 +79,8 @@ export default function BirthGenderPage() {
         <SignUpHeader
           title="기본 정보를 입력해주세요"
           description="사용할 닉네임과 생년월일, 성별을 알려주세요."
-          currentStep={2}
-          totalSteps={3}
+          currentStep={3}
+          totalSteps={4}
           showBackButton
         />
 

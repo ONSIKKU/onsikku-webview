@@ -43,7 +43,7 @@ export default function NotificationCard({
   return (
     <div
       onClick={() => onClick(item)}
-      className={`w-full p-5 rounded-2xl shadow-sm bg-white border cursor-pointer active:opacity-90 transition-all ${borderColor}`}
+      className={`w-full p-4 rounded-2xl shadow-sm bg-white border cursor-pointer active:opacity-90 transition-all ${borderColor}`}
     >
       <div className="flex flex-row justify-between items-start">
         <div className="flex flex-row items-center flex-1">
@@ -68,9 +68,9 @@ export default function NotificationCard({
         </button>
       </div>
 
-      <div className="mt-3 ml-10">
+      <div className="mt-2 ml-10">
         <div className="text-base text-gray-700">{item.message}</div>
-        <div className="text-sm text-gray-400 mt-2">{item.time}</div>
+        <div className="text-sm text-gray-400 mt-1.5">{item.time}</div>
       </div>
     </div>
   );

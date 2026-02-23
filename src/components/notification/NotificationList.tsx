@@ -40,7 +40,7 @@ export default function NotificationList({
   }
 
   return (
-    <div className="flex flex-col" style={{ gap: 12 }}>
+    <div className="flex flex-col" style={{ gap: 8 }}>
       {notifications.map((item) => (
         <NotificationCard
           key={item.id}

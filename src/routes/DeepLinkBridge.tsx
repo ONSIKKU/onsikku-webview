@@ -120,7 +120,7 @@ export default function DeepLinkBridge() {
         if (isRegistered) {
           navigate('/home', { replace: true });
         } else {
-          navigate('/signup/role', { replace: true });
+          navigate('/signup/agree', { replace: true });
         }
       } catch (e: any) {
         console.error('[DeepLink] error:', e);

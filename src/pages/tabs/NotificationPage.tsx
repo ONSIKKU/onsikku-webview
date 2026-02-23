@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import NotificationList from '@/components/notification/NotificationList';
 import NotificationSummary from '@/components/notification/NotificationSummary';
+import { useModalStore } from '@/features/modal/modalStore';
 import { 
   getNotifications, 
   readNotification, 
@@ -33,6 +34,7 @@ const formatTimeAgo = (dateString: string) => {
 
 export default function NotificationPage() {
   const navigate = useNavigate();
+  const { openModal } = useModalStore();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -129,6 +131,28 @@ export default function NotificationPage() {
     }
   };
 
+  const handleDeleteAll = () => {
+    if (notifications.length === 0) return;
+
+    openModal({
+      type: 'confirm',
+      title: '전체 삭제',
+      content: '모든 알림을 삭제하시겠어요?',
+      confirmText: '삭제',
+      cancelText: '취소',
+      onConfirm: async () => {
+        try {
+          const ids = notifications.map((n) => n.id);
+          await Promise.all(ids.map((id) => deleteNotification(id)));
+          setNotifications([]);
+        } catch (e) {
+          console.error('Failed to delete all notifications', e);
+          openModal({ content: '전체 삭제에 실패했습니다.' });
+        }
+      },
+    });
+  };
+
   const handleNavigate = async (item: Notification) => {
     if (!item.isRead) {
       await handleRead(item.id);
@@ -160,6 +184,7 @@ export default function NotificationPage() {
           unreadCount={unreadCount} 
           totalCount={notifications.length}
           onMarkAllRead={handleMarkAllRead}
+          onDeleteAll={handleDeleteAll}
         />
         <NotificationList 
           notifications={notifications}

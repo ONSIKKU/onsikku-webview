@@ -84,8 +84,8 @@ export default function FamilyCodePage() {
         <SignUpHeader
           title="가족에 합류할 시간이에요"
           description="새로운 가족 공간을 만들거나, 초대 코드로 기존 가족에 참여하세요."
-          currentStep={3}
-          totalSteps={3}
+          currentStep={4}
+          totalSteps={4}
           showBackButton
         />
 

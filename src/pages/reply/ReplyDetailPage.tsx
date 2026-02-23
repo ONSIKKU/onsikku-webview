@@ -196,6 +196,22 @@ function ArrowUpIcon({ size = 20 }: { size?: number }) {
   );
 }
 
+function MoreVerticalIcon({ size = 18, color = '#9CA3AF' }: { size?: number; color?: string }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="5" r="1.8" fill={color} />
+      <circle cx="12" cy="12" r="1.8" fill={color} />
+      <circle cx="12" cy="19" r="1.8" fill={color} />
+    </svg>
+  );
+}
+
 const formatTimeAgo = (dateString: string) => {
   if (!dateString) return '';
   const safe = dateString.endsWith('Z') ? dateString : dateString + 'Z';
@@ -316,6 +332,8 @@ const FeedCard = ({
   canReport: boolean;
   canBlock: boolean;
 }) => {
+  const [showMenu, setShowMenu] = useState(false);
+
   const role = answer.familyRole || answer.member?.familyRole;
   const gender = answer.gender || answer.member?.gender;
 
@@ -347,36 +365,59 @@ const FeedCard = ({
         </div>
 
         {(isMyAnswer || canReport || canBlock) && (
-          <div className="flex flex-row gap-1">
-            {isMyAnswer && (
-              <button
-                type="button"
-                onClick={onEdit}
-                className="p-2 active:opacity-70"
-                aria-label="edit answer"
-              >
-                <PencilIcon size={18} color="#9CA3AF" />
-              </button>
-            )}
-            {canReport && (
-              <button
-                type="button"
-                onClick={onReport}
-                className="text-xs px-2 py-2 rounded-xl bg-gray-100 text-gray-600 font-semibold font-sans active:opacity-70"
-                aria-label="report answer"
-              >
-                신고
-              </button>
-            )}
-            {canBlock && (
-              <button
-                type="button"
-                onClick={onBlock}
-                className="text-xs px-2 py-2 rounded-xl bg-red-50 text-red-600 font-semibold font-sans active:opacity-70"
-                aria-label="block user"
-              >
-                {blockLabel}
-              </button>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShowMenu((prev) => !prev)}
+              className="p-2 active:opacity-70"
+              aria-label="answer actions"
+            >
+              <MoreVerticalIcon size={18} color="#9CA3AF" />
+            </button>
+
+            {showMenu && (
+              <div className="absolute right-0 top-10 z-10 min-w-[110px] rounded-xl border border-gray-100 bg-white p-1.5 shadow-md">
+                {isMyAnswer && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowMenu(false);
+                      onEdit();
+                    }}
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-gray-700 active:bg-gray-50"
+                    aria-label="edit answer"
+                  >
+                    <PencilIcon size={14} color="#6B7280" />
+                    수정
+                  </button>
+                )}
+                {canReport && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowMenu(false);
+                      onReport();
+                    }}
+                    className="flex w-full items-center rounded-lg px-3 py-2 text-sm text-gray-700 active:bg-gray-50"
+                    aria-label="report answer"
+                  >
+                    신고
+                  </button>
+                )}
+                {canBlock && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowMenu(false);
+                      onBlock();
+                    }}
+                    className="flex w-full items-center rounded-lg px-3 py-2 text-sm text-red-600 active:bg-red-50"
+                    aria-label="block user"
+                  >
+                    {blockLabel}
+                  </button>
+                )}
+              </div>
             )}
           </div>
         )}
@@ -429,6 +470,8 @@ const CommentCard = ({
   canReport: boolean;
   canBlock: boolean;
 }) => {
+  const [showMenu, setShowMenu] = useState(false);
+
   const role = comment.member?.familyRole ?? comment.familyRole;
   const gender = comment.member?.gender ?? comment.gender;
   const { icon: roleIcon, text: roleText } = getRoleIconAndText(role, gender);
@@ -460,48 +503,77 @@ const CommentCard = ({
               </div>
             </div>
 
-            <div className="flex-row items-center gap-3 flex">
-              {canReport && (
+            {(isMyComment || canReport || canBlock) && (
+              <div className="relative">
                 <button
                   type="button"
-                  onClick={onReport}
-                  className="text-xs px-2 py-1 rounded-lg bg-gray-100 text-gray-600 font-semibold font-sans active:opacity-70"
-                  aria-label="report comment"
+                  onClick={() => setShowMenu((prev) => !prev)}
+                  className="p-1.5 active:opacity-70"
+                  aria-label="comment actions"
                 >
-                  신고
+                  <MoreVerticalIcon size={17} color="#9CA3AF" />
                 </button>
-              )}
-              {canBlock && (
-                <button
-                  type="button"
-                  onClick={onBlock}
-                  className="text-xs px-2 py-1 rounded-lg bg-red-50 text-red-600 font-semibold font-sans active:opacity-70"
-                  aria-label="block user"
-                >
-                  {blockLabel}
-                </button>
-              )}
-              {isMyComment && (
-                <>
-                  <button
-                    type="button"
-                    onClick={onEdit}
-                    className="p-1 active:opacity-70"
-                    aria-label="edit comment"
-                  >
-                    <PencilIcon size={16} color="#9CA3AF" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={onDelete}
-                    className="p-1 active:opacity-70"
-                    aria-label="delete comment"
-                  >
-                    <TrashIcon size={16} color="#EF4444" />
-                  </button>
-                </>
-              )}
-            </div>
+
+                {showMenu && (
+                  <div className="absolute right-0 top-8 z-10 min-w-[110px] rounded-xl border border-gray-100 bg-white p-1.5 shadow-md">
+                    {canReport && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowMenu(false);
+                          onReport();
+                        }}
+                        className="flex w-full items-center rounded-lg px-3 py-2 text-sm text-gray-700 active:bg-gray-50"
+                        aria-label="report comment"
+                      >
+                        신고
+                      </button>
+                    )}
+                    {canBlock && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowMenu(false);
+                          onBlock();
+                        }}
+                        className="flex w-full items-center rounded-lg px-3 py-2 text-sm text-red-600 active:bg-red-50"
+                        aria-label="block user"
+                      >
+                        {blockLabel}
+                      </button>
+                    )}
+                    {isMyComment && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowMenu(false);
+                          onEdit();
+                        }}
+                        className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-gray-700 active:bg-gray-50"
+                        aria-label="edit comment"
+                      >
+                        <PencilIcon size={14} color="#6B7280" />
+                        수정
+                      </button>
+                    )}
+                    {isMyComment && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowMenu(false);
+                          onDelete();
+                        }}
+                        className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-red-600 active:bg-red-50"
+                        aria-label="delete comment"
+                      >
+                        <TrashIcon size={14} color="#DC2626" />
+                        삭제
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="font-sans text-base text-gray-900 leading-relaxed mb-2 whitespace-pre-wrap">
