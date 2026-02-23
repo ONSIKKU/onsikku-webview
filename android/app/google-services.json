@@ -1,21 +1,21 @@
 {
   "project_info": {
-    "project_number": "247724646222",
-    "project_id": "onsikku",
-    "storage_bucket": "onsikku.firebasestorage.app"
+    "project_number": "314701683136",
+    "project_id": "onsikku-9433d",
+    "storage_bucket": "onsikku-9433d.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:247724646222:android:b9d786eeecef1f5028881f",
+        "mobilesdk_app_id": "1:314701683136:android:90944283d74e8d2ad9d025",
         "android_client_info": {
-          "package_name": "com.onsikku.app"
+          "package_name": "com.onsikku.android"
         }
       },
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyCr3LildcVXXZad72ynGpYXN8ioaTkIcYw"
+          "current_key": "AIzaSyAcBH19T63fl4ctb0W6W1lvU_dOCwvT-vQ"
         }
       ],
       "services": {
