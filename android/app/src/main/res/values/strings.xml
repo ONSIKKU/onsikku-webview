@@ -4,4 +4,5 @@
     <string name="title_activity_main">온식구</string>
     <string name="package_name">com.onsikku.app</string>
     <string name="custom_url_scheme">com.onsikku.app</string>
+    <string name="default_notification_channel_id">onsikku_default</string>
 </resources>

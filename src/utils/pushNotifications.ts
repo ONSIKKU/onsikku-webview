@@ -10,6 +10,7 @@ import { getItem, removeItem, setItem } from '@/utils/AsyncStorage';
 import { deletePushToken, upsertPushToken } from '@/utils/api';
 
 const PUSH_TOKEN_STORAGE_KEY = 'pushToken';
+const ANDROID_DEFAULT_CHANNEL_ID = 'onsikku_default';
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -88,6 +89,22 @@ export async function initPushNotifications(options: InitPushOptions = {}) {
   if (initialized) return;
 
   initialized = true;
+
+  if (Capacitor.getPlatform() === 'android') {
+    try {
+      await PushNotifications.createChannel({
+        id: ANDROID_DEFAULT_CHANNEL_ID,
+        name: '기본 알림',
+        description: '온식구 기본 알림 채널',
+        importance: 4,
+        visibility: 1,
+        vibration: true,
+        lights: true,
+      });
+    } catch (e) {
+      console.warn('[Push] failed to create default notification channel:', e);
+    }
+  }
 
   await FirebaseMessaging.addListener('tokenReceived', async ({ token }) => {
     console.log('[Push] FCM token received:', token);
