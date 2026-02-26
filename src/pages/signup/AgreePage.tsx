@@ -14,7 +14,6 @@ const REQUIRED_KEYS: SignupAgreementKey[] = [
   'age14',
   'terms',
   'privacy',
-  'overseas',
 ];
 
 const ITEMS: Array<{
@@ -45,16 +44,10 @@ const ITEMS: Array<{
     hasLink: true,
   },
   {
-    key: 'overseas',
-    label: '개인정보의 국외 이전 동의',
-    required: true,
-    reason: 'AI 기능 제공을 위해 OpenAI(미국) 서버 사용',
-  },
-  {
     key: 'marketing',
     label: '마케팅 알림(푸시) 수신 동의',
     required: false,
-    reason: '광고 및 이벤트 알림 전송용 (필수 아님)',
+    reason: '광고 및 이벤트 알림 전송용',
   },
 ];
 
@@ -68,7 +61,7 @@ export default function AgreePage() {
   );
 
   const isAllChecked = useMemo(
-    () => Object.values(agreements).every(Boolean),
+    () => ITEMS.every((item) => agreements[item.key]),
     [agreements],
   );
 
@@ -144,11 +137,6 @@ export default function AgreePage() {
               ))}
             </div>
           </div>
-
-          <p className="px-1 text-xs leading-5 text-gray-500">
-            본 서비스는 AI 기능 제공을 위해 OpenAI(미국)로 데이터가 전송될 수
-            있으며, 이에 동의해야 서비스 이용이 가능합니다.
-          </p>
         </div>
       </div>
 

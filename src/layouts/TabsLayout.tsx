@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import {
   IoHome,
@@ -10,12 +11,19 @@ import {
   IoPersonOutline,
 } from 'react-icons/io5';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
+import { useNotificationStore } from '@/features/notification/notificationStore';
 
 export default function TabsLayout() {
   const location = useLocation();
+  const unreadCount = useNotificationStore((state) => state.unreadCount);
+  const refreshUnreadCount = useNotificationStore((state) => state.refreshUnreadCount);
 
   // ✅ 로그인 후 탭 레이아웃이 로드되면 푸시 초기화(권한/등록/리스너)
   usePushNotifications();
+
+  useEffect(() => {
+    refreshUnreadCount();
+  }, [location.pathname, refreshUnreadCount]);
 
   const tabs = [
     {
@@ -75,9 +83,9 @@ export default function TabsLayout() {
                     <div className="relative mb-1">
                       <Icon size={26} />
                       {tab.path === '/notification' && (
-                        // Optional: Badge placeholder if needed later
-                        // <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-red-500" />
-                        null
+                        unreadCount > 0 ? (
+                          <span className="absolute top-0.5 right-0.5 h-2 w-2 rounded-full bg-red-500" />
+                        ) : null
                       )}
                     </div>
                     <span className="text-[10px] font-medium font-sans">{tab.label}</span>

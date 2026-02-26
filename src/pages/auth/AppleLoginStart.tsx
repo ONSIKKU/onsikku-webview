@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
+import { App } from '@capacitor/app';
 import { Browser } from '@capacitor/browser';
 import { setItem } from '@/utils/AsyncStorage';
 import { setAccessToken } from '@/utils/api';
@@ -10,6 +11,9 @@ const API_BASE =
 
 const APPLE_CLIENT_ID = import.meta.env.VITE_APPLE_CLIENT_ID as string | undefined;
 const APPLE_REDIRECT_URI = import.meta.env.VITE_APPLE_REDIRECT_URI as string | undefined;
+const DEFAULT_APPLE_CLIENT_ID = 'com.onsikku.app';
+const DEFAULT_APPLE_REDIRECT_URI = 'https://appleid.apple.com';
+const AUTH_DEBUG = (import.meta.env.VITE_AUTH_DEBUG as string | undefined) === 'true';
 
 /**
  * (선택) 네이티브 authorize가 실패했을 때(혹은 Web 방식만 지원할 때)
@@ -20,13 +24,145 @@ const APPLE_REDIRECT_URI = import.meta.env.VITE_APPLE_REDIRECT_URI as string | u
  */
 const APPLE_LOGIN_URL = import.meta.env.VITE_APPLE_LOGIN_URL as string | undefined;
 
-function safeRandom(): string {
+function parseJsonSafe(text: string) {
+  if (!text) return null;
   try {
-    // 최신 브라우저/웹뷰
-    // @ts-ignore
-    if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
-  } catch {}
-  return String(Date.now()) + Math.random().toString(16).slice(2);
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
+
+function getErrorMessage(err: unknown, fallback: string) {
+  if (!err) return fallback;
+  if (err instanceof Error && err.message) return err.message;
+  if (typeof err === 'string' && err.trim()) return err;
+
+  const maybeObj = err as { message?: unknown; code?: unknown };
+  if (typeof maybeObj?.message === 'string' && maybeObj.message.trim()) {
+    return maybeObj.message;
+  }
+  if (maybeObj?.code != null) {
+    return `${fallback} (code=${String(maybeObj.code)})`;
+  }
+
+  return fallback;
+}
+
+function toBodyPreview(text: string, maxLength = 400) {
+  if (!text) return '';
+  const compact = text.replace(/\s+/g, ' ').trim();
+  if (compact.length <= maxLength) return compact;
+  return `${compact.slice(0, maxLength)}...`;
+}
+
+type AppleNativePayload = {
+  identityToken: string;
+  authorizationCode?: string;
+  user?: string;
+};
+
+async function requestAppleLogin(nativePayload: AppleNativePayload) {
+  if (AUTH_DEBUG) {
+    console.log('[AppleDebug] /api/auth/apple request', {
+      hasIdentityToken: !!nativePayload.identityToken,
+      identityTokenPrefix: nativePayload.identityToken?.slice(0, 16),
+      hasAuthorizationCode: !!nativePayload.authorizationCode,
+      hasUser: !!nativePayload.user,
+    });
+  }
+  const res = await fetch(`${API_BASE}/api/auth/apple`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(nativePayload),
+  });
+
+  const text = await res.text().catch(() => '');
+  const json = parseJsonSafe(text);
+  const bodyPreview = toBodyPreview(text);
+
+  if (AUTH_DEBUG) {
+    console.log('[AppleDebug] /api/auth/apple response', {
+      status: res.status,
+      ok: res.ok,
+      hasResult: !!json?.result,
+      hasTicket: !!(json?.result?.ticket ?? json?.ticket),
+      baseResponseStatus: json?.baseResponseStatus,
+      code: json?.code,
+      message: json?.message,
+      errorMessage: json?.errorMessage,
+      bodyPreview,
+    });
+  }
+
+  const isBackendError =
+    !res.ok ||
+    json?.errorMessage ||
+    json?.baseResponseStatus ||
+    (typeof json?.code === 'number' && json.code >= 400);
+
+  if (isBackendError) {
+    const msg =
+      json?.errorMessage ||
+      json?.message ||
+      `애플 로그인 실패 (HTTP ${res.status}, code=${json?.code ?? 'unknown'})${
+        bodyPreview ? `, body=${bodyPreview}` : ''
+      }`;
+    throw new Error(msg);
+  }
+
+  return json?.result ?? json;
+}
+
+async function exchangeTicket(ticket: string) {
+  if (AUTH_DEBUG) {
+    console.log('[AppleDebug] /api/auth/exchange request', {
+      hasTicket: !!ticket,
+      ticketPrefix: ticket?.slice(0, 8),
+    });
+  }
+  const res = await fetch(`${API_BASE}/api/auth/exchange?ticket=${encodeURIComponent(ticket)}`, {
+    method: 'GET',
+  });
+
+  const text = await res.text().catch(() => '');
+  const json = parseJsonSafe(text);
+  const bodyPreview = toBodyPreview(text);
+
+  if (AUTH_DEBUG) {
+    const payload = json?.result ?? json;
+    console.log('[AppleDebug] /api/auth/exchange response', {
+      status: res.status,
+      ok: res.ok,
+      isRegistered: payload?.isRegistered ?? payload?.registered,
+      hasAccessToken: !!payload?.accessToken,
+      hasRefreshToken: !!payload?.refreshToken,
+      hasRegistrationToken: !!payload?.registrationToken,
+      baseResponseStatus: json?.baseResponseStatus,
+      code: json?.code,
+      message: json?.message,
+      errorMessage: json?.errorMessage,
+      bodyPreview,
+    });
+  }
+
+  const isBackendError =
+    !res.ok ||
+    json?.errorMessage ||
+    json?.baseResponseStatus ||
+    (typeof json?.code === 'number' && json.code >= 400);
+
+  if (isBackendError) {
+    const msg =
+      json?.errorMessage ||
+      json?.message ||
+      `티켓 교환 실패 (HTTP ${res.status}, code=${json?.code ?? 'unknown'})${
+        bodyPreview ? `, body=${bodyPreview}` : ''
+      }`;
+    throw new Error(msg);
+  }
+
+  return json?.result ?? json;
 }
 
 export default function AppleLoginStart() {
@@ -41,69 +177,98 @@ export default function AppleLoginStart() {
         return;
       }
 
+      let identityToken = '';
+      let authorizationCode = '';
+      let user = '';
+
       // 1) 네이티브 Sign in with Apple 시도
       try {
+        if (AUTH_DEBUG) {
+          try {
+            const info = await App.getInfo();
+            console.log('[AppleDebug] app info', {
+              id: info.id,
+              name: info.name,
+              version: info.version,
+              build: info.build,
+              platform: Capacitor.getPlatform(),
+            });
+          } catch {
+            // ignore
+          }
+        }
+
         // 동적 import로 web 번들에서 안전하게 처리
         const mod = await import('@capacitor-community/apple-sign-in');
         const SignInWithApple = mod.SignInWithApple;
 
-        if (!APPLE_CLIENT_ID || !APPLE_REDIRECT_URI) {
-          throw new Error(
-            'Apple 로그인 환경변수(VITE_APPLE_CLIENT_ID / VITE_APPLE_REDIRECT_URI)가 필요합니다. (.env 설정 확인)',
-          );
-        }
-
         const result = await SignInWithApple.authorize({
-          clientId: APPLE_CLIENT_ID,
-          redirectURI: APPLE_REDIRECT_URI,
+          clientId: APPLE_CLIENT_ID || DEFAULT_APPLE_CLIENT_ID,
+          redirectURI: APPLE_REDIRECT_URI || DEFAULT_APPLE_REDIRECT_URI,
           scopes: 'email name',
-          state: safeRandom(),
-          nonce: safeRandom(),
         });
+
+        if (AUTH_DEBUG) {
+          console.log('[AppleDebug] native authorize success', {
+            hasResponse: !!result,
+          });
+        }
 
         // plugin 반환 형태가 버전에 따라 다를 수 있어 방어적으로 처리
         const response: any = (result as any)?.response ?? result;
 
-        const identityToken = response?.identityToken;
-        const authorizationCode = response?.authorizationCode;
-        const user = response?.user;
-        const email = response?.email;
-        const givenName = response?.givenName;
-        const familyName = response?.familyName;
-
-        // 2) 백엔드에 토큰 검증 + 우리 서비스 토큰 발급 요청
-        // ⚠️ 엔드포인트/바디는 백엔드 구현에 따라 달라질 수 있습니다.
-        const res = await fetch(`${API_BASE}/api/auth/apple`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            identityToken,
-            authorizationCode,
-            user,
-            email,
-            givenName,
-            familyName,
-          }),
-        });
-
-        const text = await res.text().catch(() => '');
-        const json = text ? JSON.parse(text) : null;
-
-        const isBackendError =
-          !res.ok ||
-          json?.errorMessage ||
-          json?.baseResponseStatus ||
-          (typeof json?.code === 'number' && json.code >= 400);
-
-        if (isBackendError) {
-          const msg =
-            json?.errorMessage ||
-            json?.message ||
-            `애플 로그인 실패 (HTTP ${res.status}, code=${json?.code ?? 'unknown'})`;
-          throw new Error(msg);
+        identityToken = response?.identityToken ?? '';
+        authorizationCode = response?.authorizationCode ?? '';
+        user = response?.user ?? '';
+        if (!identityToken) {
+          throw new Error('Apple identityToken을 받지 못했습니다.');
         }
 
-        const payload = json?.result ?? json;
+        if (AUTH_DEBUG) {
+          console.log('[AppleDebug] native payload parsed', {
+            hasIdentityToken: !!response?.identityToken,
+            hasAuthorizationCode: !!response?.authorizationCode,
+            hasUser: !!response?.user,
+            hasEmail: !!response?.email,
+          });
+        }
+      } catch (e) {
+        console.warn('[AppleLogin] native authorize failed:', e);
+        if (AUTH_DEBUG) {
+          console.log('[AppleDebug] native authorize failed detail', {
+            message: (e as any)?.message,
+            code: (e as any)?.code,
+          });
+        }
+
+        // fallback: 네이티브 authorize 단계에서만 실행
+        if (APPLE_LOGIN_URL) {
+          try {
+            await Browser.open({ url: APPLE_LOGIN_URL, presentationStyle: 'fullscreen' });
+            // ✅ 성공 시, DeepLinkBridge가 onsikku://auth?ticket=... 를 받아서 처리합니다.
+            return;
+          } catch (openErr) {
+            console.error('[AppleLogin] fallback Browser.open failed:', openErr);
+          }
+        }
+
+        alert(getErrorMessage(e, '애플 로그인 인증 단계에서 오류가 발생했습니다.'));
+        navigate('/', { replace: true });
+        return;
+      }
+
+      // 2) 백엔드에 Apple identityToken 전달
+      // - 백엔드가 직접 토큰을 반환하거나
+      // - ticket만 반환하고 /api/auth/exchange로 교환하는 방식 둘 다 지원
+      try {
+        const applePayload = await requestAppleLogin({
+          identityToken,
+          authorizationCode: authorizationCode || undefined,
+          user: user || undefined,
+        });
+        const payload = applePayload?.ticket
+          ? await exchangeTicket(applePayload.ticket)
+          : applePayload;
 
         const accessToken: string | undefined = payload?.accessToken;
         const refreshToken: string | undefined = payload?.refreshToken;
@@ -116,7 +281,7 @@ export default function AppleLoginStart() {
           await setItem('registrationToken', registrationToken);
         }
         if (accessToken) {
-          console.log("🔓 Apple Access Token:", accessToken);
+          console.log('🔓 Apple Access Token:', accessToken);
           setAccessToken(accessToken);
           await setItem('accessToken', accessToken);
         }
@@ -130,26 +295,22 @@ export default function AppleLoginStart() {
 
         // 라우팅
         if (isRegistered) {
+          if (AUTH_DEBUG) console.log('[AppleDebug] navigate /home');
           navigate('/home', { replace: true });
         } else {
+          if (AUTH_DEBUG) console.log('[AppleDebug] navigate /signup/agree');
           navigate('/signup/agree', { replace: true });
         }
-        return;
-      } catch (e: any) {
-        console.warn('[AppleLogin] native authorize failed:', e);
-
-        // 2) fallback: 백엔드 OAuth 시작 URL이 있다면 브라우저로 열기
-        if (APPLE_LOGIN_URL) {
-          try {
-            await Browser.open({ url: APPLE_LOGIN_URL, presentationStyle: 'fullscreen' });
-            // ✅ 성공 시, DeepLinkBridge가 onsikku://auth?ticket=... 를 받아서 처리합니다.
-            return;
-          } catch (openErr) {
-            console.error('[AppleLogin] fallback Browser.open failed:', openErr);
-          }
+      } catch (e) {
+        const errorMessage = getErrorMessage(e, '애플 로그인 처리 중 오류가 발생했습니다.');
+        console.error('[AppleLogin] backend exchange failed:', errorMessage, e);
+        if (AUTH_DEBUG) {
+          console.log('[AppleDebug] backend exchange failed detail', {
+            message: errorMessage,
+            code: (e as any)?.code,
+          });
         }
-
-        alert(e?.message || '애플 로그인 중 오류가 발생했습니다.');
+        alert(errorMessage);
         navigate('/', { replace: true });
       }
     })();

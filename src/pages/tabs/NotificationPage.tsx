@@ -13,6 +13,7 @@ import {
 import { getItem } from '@/utils/AsyncStorage';
 import { getRoleIconAndText } from '@/utils/labels';
 import type { Notification } from '@/components/notification/NotificationCard';
+import { useNotificationStore } from '@/features/notification/notificationStore';
 
 const formatTimeAgo = (dateString: string) => {
   if (!dateString) return '';
@@ -35,6 +36,7 @@ const formatTimeAgo = (dateString: string) => {
 export default function NotificationPage() {
   const navigate = useNavigate();
   const { openModal } = useModalStore();
+  const setUnreadCount = useNotificationStore((state) => state.setUnreadCount);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -47,6 +49,7 @@ export default function NotificationPage() {
 
       const response = await getNotifications(0, 50); // Fetch first 50 for now
       const data = response.notificationHistorySlice.content;
+      setUnreadCount(response.unReadCount || 0);
       
       const mapped: Notification[] = data.map((item) => {
         const { icon, text } = item.member 
@@ -108,6 +111,7 @@ export default function NotificationPage() {
       // API only supports individual read, so we call them in parallel
       await Promise.all(unreadIds.map(id => readNotification(id)));
       setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+      setUnreadCount(0);
     } catch (e) {
       console.error('Failed to mark all as read', e);
     }
@@ -116,7 +120,11 @@ export default function NotificationPage() {
   const handleRead = async (id: string) => {
     try {
       await readNotification(id);
-      setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+      setNotifications(prev => {
+        const next = prev.map(n => n.id === id ? { ...n, isRead: true } : n);
+        setUnreadCount(next.filter(n => !n.isRead).length);
+        return next;
+      });
     } catch (e) {
       console.error('Failed to mark as read', e);
     }
@@ -125,7 +133,11 @@ export default function NotificationPage() {
   const handleDelete = async (id: string) => {
     try {
       await deleteNotification(id);
-      setNotifications(prev => prev.filter(n => n.id !== id));
+      setNotifications(prev => {
+        const next = prev.filter(n => n.id !== id);
+        setUnreadCount(next.filter(n => !n.isRead).length);
+        return next;
+      });
     } catch (e) {
       console.error('Failed to delete notification', e);
     }
@@ -145,6 +157,7 @@ export default function NotificationPage() {
           const ids = notifications.map((n) => n.id);
           await Promise.all(ids.map((id) => deleteNotification(id)));
           setNotifications([]);
+          setUnreadCount(0);
         } catch (e) {
           console.error('Failed to delete all notifications', e);
           openModal({ content: '전체 삭제에 실패했습니다.' });

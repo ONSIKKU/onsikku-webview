@@ -9,6 +9,7 @@ import { setAccessToken } from '@/utils/api';
 const API_BASE =
   (import.meta.env.VITE_API_BASE as string | undefined) ||
   'https://api.onsikku.xyz';
+const AUTH_DEBUG = (import.meta.env.VITE_AUTH_DEBUG as string | undefined) === 'true';
 
 export default function DeepLinkBridge() {
   const navigate = useNavigate();
@@ -22,6 +23,12 @@ export default function DeepLinkBridge() {
 
     const sub = App.addListener('appUrlOpen', async ({ url }) => {
       console.log('[DeepLink] appUrlOpen url =', url);
+      if (AUTH_DEBUG) {
+        console.log('[AppleDebug] appUrlOpen', {
+          hasUrl: !!url,
+          startsWithAuth: typeof url === 'string' ? url.startsWith('onsikku://auth') : false,
+        });
+      }
 
       if (!url) return;
       if (!url.startsWith('onsikku://auth')) return;
@@ -36,8 +43,15 @@ export default function DeepLinkBridge() {
 
       if (!ticket) {
         console.warn('[DeepLink] ticket missing');
+        if (AUTH_DEBUG) console.log('[AppleDebug] ticket missing from deeplink');
         alert('ticket이 없습니다.');
         return;
+      }
+
+      if (AUTH_DEBUG) {
+        console.log('[AppleDebug] ticket parsed', {
+          ticketPrefix: ticket.slice(0, 8),
+        });
       }
 
       // ✅ 같은 ticket이 또 들어오면 무시 (iOS에서 appUrlOpen 2번 오는 경우 방지)
@@ -88,6 +102,19 @@ export default function DeepLinkBridge() {
         const payload = json?.result ?? json;
 
         console.log('[DeepLink] exchange payload =', payload);
+        if (AUTH_DEBUG) {
+          console.log('[AppleDebug] deeplink exchange response', {
+            status: res.status,
+            isRegistered: payload?.isRegistered ?? payload?.registered,
+            hasAccessToken: !!payload?.accessToken,
+            hasRefreshToken: !!payload?.refreshToken,
+            hasRegistrationToken: !!payload?.registrationToken,
+            baseResponseStatus: json?.baseResponseStatus,
+            code: json?.code,
+            message: json?.message,
+            errorMessage: json?.errorMessage,
+          });
+        }
 
         const accessToken: string | undefined = payload?.accessToken;
         const refreshToken: string | undefined = payload?.refreshToken;
@@ -118,12 +145,20 @@ export default function DeepLinkBridge() {
 
         // 라우팅
         if (isRegistered) {
+          if (AUTH_DEBUG) console.log('[AppleDebug] deeplink navigate /home');
           navigate('/home', { replace: true });
         } else {
+          if (AUTH_DEBUG) console.log('[AppleDebug] deeplink navigate /signup/agree');
           navigate('/signup/agree', { replace: true });
         }
       } catch (e: any) {
         console.error('[DeepLink] error:', e);
+        if (AUTH_DEBUG) {
+          console.log('[AppleDebug] deeplink error detail', {
+            message: e?.message,
+            code: e?.code,
+          });
+        }
         alert(e?.message || '로그인 처리 중 오류가 발생했습니다.');
 
         // 실패하면 같은 ticket이라도 다시 시도 가능하게 하려면 lastTicketRef를 초기화

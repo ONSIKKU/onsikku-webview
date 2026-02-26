@@ -4,9 +4,21 @@ import QuestionList from '@/components/history/QuestionList';
 import { getQuestionsByMonth, setAccessToken } from '@/utils/api';
 import type { QuestionDetails } from '@/utils/api';
 import { getItem } from '@/utils/AsyncStorage';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { IoArrowDownOutline, IoArrowUpOutline } from 'react-icons/io5';
+import {
+  IoArrowDownOutline,
+  IoArrowUpOutline,
+  IoChevronDownOutline,
+  IoChevronUpOutline,
+} from 'react-icons/io5';
+
+type WeekGroup = {
+  key: string;
+  label: string;
+  week: number;
+  items: QuestionDetails[];
+};
 
 export default function HistoryPage() {
   const navigate = useNavigate();
@@ -31,6 +43,10 @@ export default function HistoryPage() {
 
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
   const [answeredOnly, setAnsweredOnly] = useState(false);
+  const [expandedWeekKeys, setExpandedWeekKeys] = useState<Set<string>>(
+    new Set(),
+  );
+  const [showScrollTop, setShowScrollTop] = useState(false);
 
   // Ensure URL always has params (for initial load consistency)
   useEffect(() => {
@@ -181,6 +197,74 @@ export default function HistoryPage() {
     ? questions.filter((q) => q.state === 'ANSWERED')
     : questions;
 
+  const getWeekMeta = (question: QuestionDetails) => {
+    const source = question.sentAt || question.answeredAt;
+    if (!source) return { week: 0, ts: 0 };
+    const date = new Date(source);
+    if (isNaN(date.getTime())) return { week: 0, ts: 0 };
+    const week = Math.ceil(date.getDate() / 7);
+    return { week, ts: date.getTime() };
+  };
+
+  const weekGroups = useMemo<WeekGroup[]>(() => {
+    const grouped = new Map<number, QuestionDetails[]>();
+
+    displayedQuestions.forEach((q) => {
+      const { week } = getWeekMeta(q);
+      const safeWeek = week <= 0 ? 1 : week;
+      if (!grouped.has(safeWeek)) grouped.set(safeWeek, []);
+      grouped.get(safeWeek)!.push(q);
+    });
+
+    const groups: WeekGroup[] = Array.from(grouped.entries())
+      .sort((a, b) => b[0] - a[0])
+      .map(([week, items]) => ({
+        key: `${selectedYear}-${selectedMonth}-${week}`,
+        label: `${selectedMonth}월 ${week}주`,
+        week,
+        items,
+      }));
+
+    return groups;
+  }, [displayedQuestions, selectedMonth, selectedYear]);
+
+  useEffect(() => {
+    if (weekGroups.length === 0) {
+      setExpandedWeekKeys(new Set());
+      return;
+    }
+
+    const available = new Set(weekGroups.map((g) => g.key));
+    let hasAny = false;
+    expandedWeekKeys.forEach((key) => {
+      if (available.has(key)) hasAny = true;
+    });
+
+    if (!hasAny) {
+      setExpandedWeekKeys(new Set([weekGroups[0].key]));
+    }
+  }, [weekGroups]);
+
+  useEffect(() => {
+    const onScroll = () => {
+      setShowScrollTop(window.scrollY > 460);
+    };
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  const toggleWeek = (key: string) => {
+    setExpandedWeekKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
   return (
     <div className="min-h-screen bg-orange-50 pb-10">
       <div className="mx-auto w-full px-5 pt-8 flex flex-col gap-6">
@@ -201,16 +285,18 @@ export default function HistoryPage() {
         />
 
         <div>
-          <div className="flex flex-row items-center justify-between mb-4 px-1">
+          <div className="flex flex-row items-center justify-between mb-3 px-1">
             <div className="font-sans font-bold text-xl text-gray-900">
               지난 질문들
             </div>
+          </div>
 
-            <div className="flex items-center gap-2">
+          <div className="sticky top-0 z-20 -mx-1 mb-4 bg-orange-50/95 px-1 py-2 backdrop-blur">
+            <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
               <button
                 type="button"
                 onClick={() => setAnsweredOnly((prev) => !prev)}
-                className={`flex flex-row items-center px-3 py-1.5 rounded-xl border shadow-sm active:scale-95 transition-transform ${
+                className={`whitespace-nowrap flex flex-row items-center px-3 py-1.5 rounded-xl border shadow-sm active:scale-95 transition-transform ${
                   answeredOnly
                     ? 'bg-onsikku-dark-orange text-white border-onsikku-dark-orange'
                     : 'bg-white text-gray-600 border-gray-100'
@@ -228,7 +314,7 @@ export default function HistoryPage() {
                     prev === 'newest' ? 'oldest' : 'newest',
                   )
                 }
-                className="flex flex-row items-center bg-white px-3 py-1.5 rounded-xl border border-gray-100 shadow-sm active:scale-95 transition-transform"
+                className="whitespace-nowrap flex flex-row items-center bg-white px-3 py-1.5 rounded-xl border border-gray-100 shadow-sm active:scale-95 transition-transform"
               >
                 {sortOrder === 'newest' ? (
                   <IoArrowDownOutline size={14} className="text-gray-600" />
@@ -242,13 +328,71 @@ export default function HistoryPage() {
             </div>
           </div>
 
-          <QuestionList
-            questions={displayedQuestions}
-            loading={loading}
-            onQuestionPress={handleQuestionPress}
-          />
+          {loading ? (
+            <QuestionList
+              questions={displayedQuestions}
+              loading={loading}
+              onQuestionPress={handleQuestionPress}
+            />
+          ) : weekGroups.length === 0 ? (
+            <QuestionList
+              questions={displayedQuestions}
+              loading={false}
+              onQuestionPress={handleQuestionPress}
+            />
+          ) : (
+            <div className="space-y-3">
+              {weekGroups.map((group) => {
+                const isOpen = expandedWeekKeys.has(group.key);
+                return (
+                  <section key={group.key} className="rounded-2xl border border-gray-100 bg-white shadow-sm overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => toggleWeek(group.key)}
+                      className="w-full flex items-center justify-between px-4 py-3 active:bg-gray-50"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold text-gray-900">
+                          {group.label}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          {group.items.length}개
+                        </span>
+                      </div>
+                      {isOpen ? (
+                        <IoChevronUpOutline size={18} className="text-gray-500" />
+                      ) : (
+                        <IoChevronDownOutline size={18} className="text-gray-500" />
+                      )}
+                    </button>
+
+                    {isOpen && (
+                      <div className="px-3 pb-3 pt-1 bg-gray-50/50">
+                        <QuestionList
+                          questions={group.items}
+                          loading={false}
+                          onQuestionPress={handleQuestionPress}
+                        />
+                      </div>
+                    )}
+                  </section>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
+
+      {showScrollTop && (
+        <button
+          type="button"
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          className="fixed bottom-24 right-5 z-30 rounded-full bg-onsikku-dark-orange p-3 text-white shadow-lg active:scale-95"
+          aria-label="scroll to top"
+        >
+          <IoArrowUpOutline size={20} />
+        </button>
+      )}
 
       {/* Date Picker Modal */}
       {showDatePicker && (
