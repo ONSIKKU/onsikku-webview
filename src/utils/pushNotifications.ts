@@ -23,6 +23,13 @@ const syncPushToken = async ({ token, platform, fcmToken }: SyncPushTokenParams)
   const prev = await getItem(PUSH_TOKEN_STORAGE_KEY);
   await setItem(PUSH_TOKEN_STORAGE_KEY, token);
 
+  console.log('[Push][Sync] token candidate', {
+    platform,
+    hasFcmToken: Boolean(fcmToken),
+    changed: prev !== token,
+    tokenPreview: `${token.slice(0, 12)}...`,
+  });
+
   if (prev === token) return;
 
   await upsertPushToken({
@@ -179,6 +186,7 @@ export async function ensurePushPermissionAndRegister(confirmBeforeRequest = tru
   }
 
   await PushNotifications.register();
+  console.log('[Push] register() called');
 
   try {
     const { token } = await FirebaseMessaging.getToken();

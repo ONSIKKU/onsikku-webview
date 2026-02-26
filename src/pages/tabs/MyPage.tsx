@@ -45,7 +45,7 @@ export default function MyPage() {
       setLoading(true);
 
       const token = await getItem('accessToken');
-      console.log('[MyPage] accessToken:', token || '(none)');
+      console.log('[MyPage] accessToken exists:', Boolean(token));
       if (token) setAccessToken(token);
 
       const res = await getMyPage();

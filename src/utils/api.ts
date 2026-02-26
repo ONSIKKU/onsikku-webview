@@ -51,10 +51,36 @@ const callPushTokenEndpoint = async <T>(
 ) => {
   let lastError: unknown;
   const paths = resolvePushTokenPaths();
+
+  if (body) {
+    try {
+      const parsed = JSON.parse(body) as { platform?: string; deviceType?: string; fcmToken?: string; token?: string };
+      console.log('[Push][API] request', {
+        method,
+        paths,
+        platform: parsed.platform,
+        deviceType: parsed.deviceType,
+        hasFcmToken: Boolean(parsed.fcmToken),
+        tokenPreview: parsed.fcmToken
+          ? `${parsed.fcmToken.slice(0, 12)}...`
+          : parsed.token
+            ? `${parsed.token.slice(0, 12)}...`
+            : undefined,
+      });
+    } catch {
+      console.log('[Push][API] request', { method, paths, bodySize: body.length });
+    }
+  } else {
+    console.log('[Push][API] request', { method, paths, bodySize: 0 });
+  }
+
   for (const path of paths) {
     try {
-      return await apiFetch<T>(path, { method, ...(body ? { body } : {}) });
+      const result = await apiFetch<T>(path, { method, ...(body ? { body } : {}) });
+      console.log('[Push][API] success', { method, path });
+      return result;
     } catch (error) {
+      console.warn('[Push][API] failed', { method, path, error });
       lastError = error;
     }
   }
