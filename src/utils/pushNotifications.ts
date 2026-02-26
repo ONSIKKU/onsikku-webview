@@ -1,4 +1,5 @@
 import { Capacitor } from '@capacitor/core';
+import { FirebaseMessaging } from '@capacitor-firebase/messaging';
 import {
   PushNotifications,
   type ActionPerformed,
@@ -9,6 +10,44 @@ import { getItem, removeItem, setItem } from '@/utils/AsyncStorage';
 import { deletePushToken, upsertPushToken } from '@/utils/api';
 
 const PUSH_TOKEN_STORAGE_KEY = 'pushToken';
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+type SyncPushTokenParams = {
+  token: string;
+  platform: string;
+  fcmToken?: string;
+};
+
+const syncPushToken = async ({ token, platform, fcmToken }: SyncPushTokenParams) => {
+  const prev = await getItem(PUSH_TOKEN_STORAGE_KEY);
+  await setItem(PUSH_TOKEN_STORAGE_KEY, token);
+
+  if (prev === token) return;
+
+  await upsertPushToken({
+    token,
+    platform,
+    ...(fcmToken ? { fcmToken } : {}),
+  });
+};
+
+const getFcmTokenBestEffort = async () => {
+  const delays = [0, 500, 1000];
+
+  for (const delay of delays) {
+    if (delay > 0) await sleep(delay);
+
+    try {
+      const { token } = await FirebaseMessaging.getToken();
+      if (token) return token;
+    } catch {
+      // ignore and retry
+    }
+  }
+
+  return null;
+};
 
 /**
  * Push 관련 리스너를 "한 번만" 등록하기 위한 플래그
@@ -43,26 +82,52 @@ export async function initPushNotifications(options: InitPushOptions = {}) {
 
   initialized = true;
 
+  await FirebaseMessaging.addListener('tokenReceived', async ({ token }) => {
+    console.log('[Push] FCM token received:', token);
+
+    try {
+      await syncPushToken({
+        token,
+        platform: Capacitor.getPlatform(),
+        fcmToken: token,
+      });
+    } catch (e) {
+      console.warn('[Push] failed to sync FCM token to server:', e);
+    }
+  });
+
+  await FirebaseMessaging.addListener('notificationReceived', (event) => {
+    console.log('[Push] FCM notification received:', event);
+    options.onReceived?.(event.notification as unknown as PushNotificationSchema);
+  });
+
+  await FirebaseMessaging.addListener('notificationActionPerformed', (event) => {
+    console.log('[Push] FCM notification action performed:', event);
+    options.onActionPerformed?.(event as unknown as ActionPerformed);
+  });
+
   // 1) 토큰 등록 리스너
   await PushNotifications.addListener('registration', async (token: Token) => {
     console.log('[Push] registration token:', token.value);
 
     try {
-      const prev = await getItem(PUSH_TOKEN_STORAGE_KEY);
-      await setItem(PUSH_TOKEN_STORAGE_KEY, token.value);
+      const platform = Capacitor.getPlatform();
+      const isIOS = platform === 'ios';
 
-      // 토큰이 바뀐 경우에만 서버로 sync
-      if (prev !== token.value) {
-        try {
-          await upsertPushToken({
-            token: token.value,
-            platform: Capacitor.getPlatform(),
-          });
-        } catch (e) {
-          // 서버 엔드포인트가 아직 없거나 네트워크 문제여도 앱이 죽지 않게
-          console.warn('[Push] failed to sync token to server:', e);
+      let syncToken = token.value;
+      let fcmToken: string | undefined;
+
+      if (isIOS) {
+        const iosFcmToken = await getFcmTokenBestEffort();
+        if (iosFcmToken) {
+          syncToken = iosFcmToken;
+          fcmToken = iosFcmToken;
+        } else {
+          console.warn('[Push] FCM token not ready yet; fallback to APNS token sync');
         }
       }
+
+      await syncPushToken({ token: syncToken, platform, ...(fcmToken ? { fcmToken } : {}) });
     } catch (e) {
       console.warn('[Push] failed to persist token:', e);
     }
@@ -114,6 +179,20 @@ export async function ensurePushPermissionAndRegister(confirmBeforeRequest = tru
   }
 
   await PushNotifications.register();
+
+  try {
+    const { token } = await FirebaseMessaging.getToken();
+    if (token) {
+      await syncPushToken({
+        token,
+        platform: Capacitor.getPlatform(),
+        fcmToken: token,
+      });
+    }
+  } catch (e) {
+    console.warn('[Push] failed to get FCM token:', e);
+  }
+
   return true;
 }
 

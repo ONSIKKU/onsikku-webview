@@ -945,6 +945,7 @@ export type UpsertPushTokenRequest = {
   token: string;
   /** Capacitor.getPlatform(): 'ios' | 'android' | 'web' */
   platform: string;
+  fcmToken?: string;
 };
 
 /**
