@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { type MouseEvent, useEffect } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import {
   IoHome,
@@ -24,6 +24,20 @@ export default function TabsLayout() {
   useEffect(() => {
     refreshUnreadCount();
   }, [location.pathname, refreshUnreadCount]);
+
+  const handleReselectActiveTab = (
+    event: MouseEvent<HTMLAnchorElement>,
+    tabPath: string,
+  ) => {
+    if (!location.pathname.startsWith(tabPath)) return;
+
+    event.preventDefault();
+
+    const activeElement = document.activeElement as HTMLElement | null;
+    activeElement?.blur?.();
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const tabs = [
     {
@@ -72,6 +86,7 @@ export default function TabsLayout() {
                   <NavLink
                     key={tab.path}
                     to={tab.path}
+                    onClick={(event) => handleReselectActiveTab(event, tab.path)}
                     className={({ isActive }) =>
                       `flex flex-col items-center justify-center p-2 rounded-2xl transition-all duration-200 active:scale-95 ${
                         isActive
