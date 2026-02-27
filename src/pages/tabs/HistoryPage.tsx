@@ -387,7 +387,8 @@ export default function HistoryPage() {
         <button
           type="button"
           onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-          className="fixed bottom-24 right-5 z-30 rounded-full bg-onsikku-dark-orange p-3 text-white shadow-lg active:scale-95"
+          className="fixed right-5 z-30 rounded-full bg-onsikku-dark-orange p-3 text-white shadow-lg active:scale-95"
+          style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 6.5rem)' }}
           aria-label="scroll to top"
         >
           <IoArrowUpOutline size={20} />
