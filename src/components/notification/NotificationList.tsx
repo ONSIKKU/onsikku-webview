@@ -5,6 +5,7 @@ import Skeleton from '@/components/Skeleton';
 interface NotificationListProps {
   notifications: Notification[];
   loading: boolean;
+  refreshing?: boolean;
   error: string;
   onRead: (id: string) => void;
   onDelete: (id: string) => void;
@@ -14,10 +15,15 @@ interface NotificationListProps {
 export default function NotificationList({
   notifications,
   loading,
+  refreshing = false,
   error,
   onDelete,
   onNavigate,
 }: NotificationListProps) {
+  if (refreshing && notifications.length === 0) {
+    return <div className="py-2" />;
+  }
+
   if (loading && notifications.length === 0) {
     return (
       <div className="py-2 space-y-3">

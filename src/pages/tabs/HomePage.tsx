@@ -14,7 +14,7 @@ import {
 } from '@/utils/api';
 import { getItem } from '@/utils/AsyncStorage';
 import { getRoleIconAndText } from '@/utils/labels';
-import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { IoRefreshOutline } from 'react-icons/io5';
 import Skeleton from '@/components/Skeleton';
@@ -43,8 +43,12 @@ export default function HomePage() {
   // Pull to Refresh State
   const [startY, setStartY] = useState(0);
   const [pullY, setPullY] = useState(0);
+  const [isPulling, setIsPulling] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
+
+  const PULL_MAX = 104;
+  const PULL_TRIGGER = 58;
+  const PULL_SNAP = 52;
 
   const fetchTodayQuestions = useCallback(async () => {
     try {
@@ -138,42 +142,57 @@ export default function HomePage() {
 
   // Pull to Refresh Handlers
   const onTouchStart = (e: React.TouchEvent) => {
-    if (window.scrollY === 0) {
-      setStartY(e.touches[0].clientY);
-    }
+    if (window.scrollY > 0 || refreshing) return;
+    setStartY(e.touches[0].clientY);
+    setIsPulling(true);
   };
 
   const onTouchMove = (e: React.TouchEvent) => {
-    if (startY === 0 || refreshing) return;
+    if (!isPulling || startY === 0 || refreshing) return;
     const currentY = e.touches[0].clientY;
     const diff = currentY - startY;
 
     if (diff > 0 && window.scrollY <= 0) {
-      // Prevent default pull-to-refresh behavior in some browsers if needed, 
-      // but usually purely visual here
-      setPullY(Math.min(diff * 0.4, 100)); // Dampening
-    } else {
-      setPullY(0);
+      const damped = Math.min(PULL_MAX, diff * 0.38);
+      setPullY(damped);
+      e.preventDefault();
+      return;
     }
+
+    setPullY(0);
   };
+
+  const handlePullRefresh = useCallback(async () => {
+    setRefreshing(true);
+    setPullY(PULL_SNAP);
+    const startedAt = Date.now();
+
+    try {
+      await handleRefresh();
+    } finally {
+      const elapsed = Date.now() - startedAt;
+      const remain = Math.max(0, 420 - elapsed);
+      if (remain > 0) {
+        await new Promise((resolve) => setTimeout(resolve, remain));
+      }
+      setRefreshing(false);
+      setPullY(0);
+      setStartY(0);
+      setIsPulling(false);
+    }
+  }, [handleRefresh]);
 
   const onTouchEnd = async () => {
     if (refreshing) return;
-    
-    if (pullY > 50) {
-      setRefreshing(true);
-      setPullY(60); // Snap to loading state
-      try {
-        await handleRefresh();
-      } finally {
-        setRefreshing(false);
-        setPullY(0);
-        setStartY(0);
-      }
-    } else {
-      setPullY(0);
-      setStartY(0);
+
+    if (pullY >= PULL_TRIGGER) {
+      await handlePullRefresh();
+      return;
     }
+
+    setPullY(0);
+    setStartY(0);
+    setIsPulling(false);
   };
 
   const formatDate = (dateString: string) => {
@@ -300,34 +319,36 @@ export default function HomePage() {
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
-      ref={containerRef}
     >
       {/* Pull to Refresh Indicator */}
       <div 
-        className="absolute top-0 left-0 right-0 flex justify-center items-center pointer-events-none"
+        className="absolute top-0 left-0 right-0 z-10 flex justify-center items-center pointer-events-none"
         style={{ 
-          height: '60px', 
-          transform: `translateY(${pullY - 60}px)`,
-          opacity: pullY > 10 ? 1 : 0,
-          transition: refreshing ? 'transform 0.2s ease' : 'transform 0s'
+          height: '56px', 
+          transform: `translateY(${pullY - 56}px)`,
+          opacity: pullY > 8 ? 1 : 0,
+          transition: isPulling && !refreshing
+            ? 'none'
+            : 'transform 260ms cubic-bezier(0.22, 1, 0.36, 1), opacity 220ms ease',
         }}
       >
-        <div className="p-2 rounded-full bg-white shadow-md">
-          {refreshing ? (
-            <Skeleton className="w-6 h-6 rounded-full" />
-          ) : (
-            <IoRefreshOutline
-              size={24}
-              className="text-onsikku-dark-orange"
-              style={{ transform: `rotate(${pullY * 2}deg)` }}
-            />
-          )}
+        <div className="p-2.5 rounded-full bg-white/95 shadow-md backdrop-blur-[1px]">
+          <IoRefreshOutline
+            size={22}
+            className={`text-onsikku-dark-orange ${refreshing ? 'animate-spin' : ''}`}
+            style={{ transform: refreshing ? undefined : `rotate(${pullY * 2.4}deg)` }}
+          />
         </div>
       </div>
 
       <div 
-        className="mx-auto w-full px-5 pt-8 transition-transform duration-200"
-        style={{ transform: `translateY(${pullY}px)` }}
+        className="mx-auto w-full px-5 pt-8"
+        style={{
+          transform: `translateY(${pullY}px)`,
+          transition: isPulling && !refreshing
+            ? 'none'
+            : 'transform 300ms cubic-bezier(0.22, 1, 0.36, 1)',
+        }}
       >
         {/* Header Section */}
         <div className="mb-8">

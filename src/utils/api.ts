@@ -905,7 +905,7 @@ export type NotificationType =
 
 export type NotificationHistory = {
   id: string;
-  member: ApiMember;
+  member?: ApiMember;
   notificationType: NotificationType;
   title: string;
   body: string;

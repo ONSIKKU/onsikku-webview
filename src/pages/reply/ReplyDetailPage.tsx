@@ -4,9 +4,11 @@ import {
   type TouchEvent,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { Capacitor } from '@capacitor/core';
 import type { Answer, Comment } from '@/utils/api';
 import {
   addReaction,
@@ -579,6 +581,14 @@ export default function ReplyDetailPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { openModal } = useModalStore();
+  const isIOS = Capacitor.getPlatform() === 'ios';
+
+  const swipeBackRef = useRef({
+    tracking: false,
+    startX: 0,
+    startY: 0,
+    triggered: false,
+  });
 
   const query = useMemo(
     () => new URLSearchParams(location.search),
@@ -1094,8 +1104,54 @@ export default function ReplyDetailPage() {
     });
   };
 
+  const handleRootTouchStart = (event: TouchEvent<HTMLDivElement>) => {
+    if (!isIOS) return;
+    const touch = event.touches[0];
+    if (!touch) return;
+
+    swipeBackRef.current = {
+      tracking: touch.clientX <= 24,
+      startX: touch.clientX,
+      startY: touch.clientY,
+      triggered: false,
+    };
+  };
+
+  const handleRootTouchMove = (event: TouchEvent<HTMLDivElement>) => {
+    if (!isIOS) return;
+
+    const touch = event.touches[0];
+    if (!touch) return;
+
+    const swipeState = swipeBackRef.current;
+    if (!swipeState.tracking || swipeState.triggered) return;
+
+    const deltaX = touch.clientX - swipeState.startX;
+    const deltaY = touch.clientY - swipeState.startY;
+
+    if (Math.abs(deltaY) > 48 && deltaX < 40) {
+      swipeBackRef.current.tracking = false;
+      return;
+    }
+
+    if (deltaX > 90 && Math.abs(deltaY) < 80) {
+      swipeBackRef.current.triggered = true;
+      swipeBackRef.current.tracking = false;
+      navigate(-1);
+    }
+  };
+
+  const handleRootTouchEnd = () => {
+    swipeBackRef.current.tracking = false;
+  };
+
   return (
-    <div className="min-h-screen bg-orange-50 pt-safe">
+    <div
+      className="min-h-screen bg-orange-50 pt-safe"
+      onTouchStart={handleRootTouchStart}
+      onTouchMove={handleRootTouchMove}
+      onTouchEnd={handleRootTouchEnd}
+    >
       {/* Header */}
       <div className="mx-auto w-full max-w-md px-4 pt-4">
         <div className="px-0 py-2 flex-row items-center mb-2 flex">

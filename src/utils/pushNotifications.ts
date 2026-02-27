@@ -229,6 +229,8 @@ export async function ensurePushPermissionAndRegister(confirmBeforeRequest = tru
 export async function unregisterPushNotifications() {
   if (!Capacitor.isNativePlatform()) return;
 
+  const storedToken = await getStoredPushToken();
+
   try {
     await PushNotifications.unregister();
   } catch (e) {
@@ -240,7 +242,6 @@ export async function unregisterPushNotifications() {
 
   // (선택) 서버에서도 토큰 삭제 요청
   try {
-    const storedToken = await getStoredPushToken();
     await deletePushToken(
       storedToken
         ? {

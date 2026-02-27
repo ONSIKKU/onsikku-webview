@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { IoRefreshOutline } from 'react-icons/io5';
 import NotificationList from '@/components/notification/NotificationList';
 import NotificationSummary from '@/components/notification/NotificationSummary';
 import { useModalStore } from '@/features/modal/modalStore';
@@ -23,10 +24,20 @@ export default function NotificationPage() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [startY, setStartY] = useState(0);
+  const [pullY, setPullY] = useState(0);
+  const [isPulling, setIsPulling] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const fetchNotifications = useCallback(async () => {
+  const PULL_MAX = 104;
+  const PULL_TRIGGER = 58;
+  const PULL_SNAP = 52;
+
+  const fetchNotifications = useCallback(async (showLoading = true) => {
     try {
-      setLoading(true);
+      if (showLoading) {
+        setLoading(true);
+      }
       const token = await getItem('accessToken');
       if (token) setAccessToken(token);
 
@@ -38,6 +49,13 @@ export default function NotificationPage() {
         const { icon, text } = item.member 
           ? getRoleIconAndText(item.member.familyRole, getGenderFromRole(item.member.familyRole))
           : { icon: '📢', text: '알림' };
+
+        const backendTitle = (item.title || '').trim();
+        const backendBody = (item.body || '').trim();
+        const payloadValues = Object.values(item.payload || {}).filter(
+          (value): value is string => Boolean(value && value.trim()),
+        );
+        const payloadText = payloadValues[0] || '';
 
         // Map backend types to UI types
         let uiType: Notification['type'] = 'system_notice';
@@ -70,7 +88,9 @@ export default function NotificationPage() {
           type: uiType,
           actor: text,
           actorAvatar: icon,
-          message: item.body || item.title,
+          title: backendTitle,
+          body: backendBody,
+          message: backendBody || payloadText || backendTitle || '새로운 알림이 도착했어요.',
           time: formatTimeAgoKo(item.publishedAt),
           isRead: !!(item.readAt || item.confirmedAt),
           relatedEntityId: relatedId || undefined,
@@ -82,13 +102,69 @@ export default function NotificationPage() {
       console.error('Failed to fetch notifications', e);
       setError('알림을 불러오지 못했습니다.');
     } finally {
-      setLoading(false);
+      if (showLoading) {
+        setLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => {
-    fetchNotifications();
+    fetchNotifications(true);
   }, [fetchNotifications]);
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    setPullY(PULL_SNAP);
+    const startedAt = Date.now();
+
+    try {
+      await fetchNotifications(false);
+    } finally {
+      const elapsed = Date.now() - startedAt;
+      const remain = Math.max(0, 420 - elapsed);
+      if (remain > 0) {
+        await new Promise((resolve) => setTimeout(resolve, remain));
+      }
+      setRefreshing(false);
+      setPullY(0);
+      setStartY(0);
+      setIsPulling(false);
+    }
+  }, [fetchNotifications]);
+
+  const onTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (window.scrollY > 0 || refreshing) return;
+    setStartY(e.touches[0].clientY);
+    setIsPulling(true);
+  };
+
+  const onTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (!isPulling || startY === 0 || refreshing) return;
+    const currentY = e.touches[0].clientY;
+    const diff = currentY - startY;
+
+    if (diff > 0 && window.scrollY <= 0) {
+      const damped = Math.min(PULL_MAX, diff * 0.38);
+      setPullY(damped);
+      e.preventDefault();
+      return;
+    }
+
+    setPullY(0);
+  };
+
+  const onTouchEnd = async () => {
+    if (refreshing) return;
+
+    if (pullY >= PULL_TRIGGER) {
+      await handleRefresh();
+      return;
+    }
+
+    setPullY(0);
+    setStartY(0);
+    setIsPulling(false);
+  };
 
   const handleMarkAllRead = async () => {
     const unreadIds = notifications.filter(n => !n.isRead).map(n => n.id);
@@ -184,8 +260,41 @@ export default function NotificationPage() {
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
   return (
-    <div className="min-h-screen bg-orange-50">
-      <div className="flex flex-col gap-5 px-5 pb-10 pt-4">
+    <div
+      className="min-h-screen bg-orange-50 overflow-hidden relative"
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+    >
+      <div
+        className="absolute top-0 left-0 right-0 z-10 flex justify-center items-center pointer-events-none"
+        style={{
+          height: '56px',
+          transform: `translateY(${pullY - 56}px)`,
+          opacity: pullY > 8 ? 1 : 0,
+          transition: isPulling && !refreshing
+            ? 'none'
+            : 'transform 260ms cubic-bezier(0.22, 1, 0.36, 1), opacity 220ms ease',
+        }}
+      >
+        <div className="p-2.5 rounded-full bg-white/95 shadow-md backdrop-blur-[1px]">
+          <IoRefreshOutline
+            size={22}
+            className={`text-onsikku-dark-orange ${refreshing ? 'animate-spin' : ''}`}
+            style={{ transform: refreshing ? undefined : `rotate(${pullY * 2.4}deg)` }}
+          />
+        </div>
+      </div>
+
+      <div
+        className="flex flex-col gap-5 px-5 pb-10 pt-4"
+        style={{
+          transform: `translateY(${pullY}px)`,
+          transition: isPulling && !refreshing
+            ? 'none'
+            : 'transform 300ms cubic-bezier(0.22, 1, 0.36, 1)',
+        }}
+      >
         <NotificationSummary 
           unreadCount={unreadCount} 
           totalCount={notifications.length}
@@ -194,7 +303,8 @@ export default function NotificationPage() {
         />
         <NotificationList 
           notifications={notifications}
-          loading={loading}
+          loading={loading && !refreshing}
+          refreshing={refreshing}
           error={error}
           onRead={handleRead}
           onDelete={handleDelete}

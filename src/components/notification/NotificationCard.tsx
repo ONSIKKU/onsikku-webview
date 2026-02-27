@@ -25,6 +25,8 @@ export interface Notification {
     | 'system_notice';
   actor: string;
   actorAvatar: string;
+  title?: string;
+  body?: string;
   message: string;
   time: string;
   isRead: boolean;
@@ -57,6 +59,9 @@ export default function NotificationCard({
   onDelete: (id: string) => void;
 }) {
   const details = typeDetails[item.type];
+  const displayTitle = item.title?.trim() || details.title;
+  const displayBody = item.body?.trim() || item.message;
+  const showActor = Boolean(item.actor?.trim()) && item.actor !== '알림';
 
   const borderColor = item.isRead
     ? 'border-transparent'
@@ -72,10 +77,10 @@ export default function NotificationCard({
       <div className="flex flex-row justify-between items-start">
         <div className="flex flex-row items-center flex-1">
           <div className="w-8 h-8 rounded-full bg-orange-50 flex items-center justify-center">
-            <img src={details.icon} alt={details.title} className="w-5 h-5" />
+            <img src={details.icon} alt={displayTitle} className="w-5 h-5" />
           </div>
           <div className="text-base font-bold text-gray-800 ml-3">
-            {details.title}
+            {displayTitle}
           </div>
           {!item.isRead && (
             <div className="w-2 h-2 bg-red-500 rounded-full ml-2" />
@@ -95,8 +100,8 @@ export default function NotificationCard({
       </div>
 
       <div className="mt-2 ml-10">
-        <div className="text-sm text-gray-500 mb-1">{item.actor}</div>
-        <div className="text-base text-gray-700">{item.message}</div>
+        {showActor && <div className="text-sm text-gray-500 mb-1">{item.actor}</div>}
+        <div className="text-base text-gray-700">{displayBody}</div>
         <div className="text-sm text-gray-400 mt-1.5">{item.time}</div>
       </div>
     </div>
