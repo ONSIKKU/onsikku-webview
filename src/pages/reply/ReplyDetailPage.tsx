@@ -10,6 +10,7 @@ import {
 } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
+import { IoRefreshOutline } from 'react-icons/io5';
 import type { Answer, Comment } from '@/utils/api';
 import {
   addReaction,
@@ -137,14 +138,14 @@ function ReplyTurnIcon({
       aria-hidden="true"
     >
       <path
-        d="M9 14l-4-4 4-4"
+        d="M5 6v7a5 5 0 0 0 5 5h9"
         stroke={color}
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
       <path
-        d="M20 20v-3a7 7 0 0 0-7-7H5"
+        d="m15 14 4 4-4 4"
         stroke={color}
         strokeWidth="2"
         strokeLinecap="round"
@@ -213,6 +214,59 @@ function MoreVerticalIcon({ size = 18, color = '#9CA3AF' }: { size?: number; col
       <circle cx="12" cy="5" r="1.8" fill={color} />
       <circle cx="12" cy="12" r="1.8" fill={color} />
       <circle cx="12" cy="19" r="1.8" fill={color} />
+    </svg>
+  );
+}
+
+function ReportIcon({
+  size = 14,
+  color = '#6B7280',
+}: {
+  size?: number;
+  color?: string;
+}) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+    >
+      <path
+        d="M5 3v18"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+      <path
+        d="M7 5h9l-1.5 3L16 11H7V5Z"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function BlockIcon({
+  size = 14,
+  color = '#DC2626',
+}: {
+  size?: number;
+  color?: string;
+}) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="8" stroke={color} strokeWidth="2" />
+      <path d="M8.5 15.5l7-7" stroke={color} strokeWidth="2" strokeLinecap="round" />
     </svg>
   );
 }
@@ -325,6 +379,11 @@ type ReactionEvent =
   | MouseEvent<HTMLButtonElement>
   | TouchEvent<HTMLButtonElement>
   | PointerEvent<HTMLButtonElement>;
+
+const menuItemBaseClass =
+  'flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm active:bg-gray-50';
+const menuItemNeutralClass = `${menuItemBaseClass} text-gray-700`;
+const menuItemDangerClass = `${menuItemBaseClass} text-red-600 active:bg-red-50`;
 
 const ReactionButton = ({
   kind,
@@ -457,7 +516,7 @@ const FeedCard = ({
                       setShowMenu(false);
                       onEdit();
                     }}
-                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-gray-700 active:bg-gray-50"
+                    className={menuItemNeutralClass}
                     aria-label="edit answer"
                   >
                     <PencilIcon size={14} color="#6B7280" />
@@ -471,9 +530,10 @@ const FeedCard = ({
                       setShowMenu(false);
                       onReport();
                     }}
-                    className="flex w-full items-center rounded-lg px-3 py-2 text-sm text-gray-700 active:bg-gray-50"
+                    className={menuItemNeutralClass}
                     aria-label="report answer"
                   >
+                    <ReportIcon size={14} color="#6B7280" />
                     신고
                   </button>
                 )}
@@ -484,9 +544,10 @@ const FeedCard = ({
                       setShowMenu(false);
                       onBlock();
                     }}
-                    className="flex w-full items-center rounded-lg px-3 py-2 text-sm text-red-600 active:bg-red-50"
+                    className={menuItemDangerClass}
                     aria-label="block user"
                   >
+                    <BlockIcon size={14} color="#DC2626" />
                     {blockLabel}
                   </button>
                 )}
@@ -552,15 +613,15 @@ const CommentCard = ({
   return (
     <div className={`${isReply ? 'ml-8' : ''}`}>
       <div
-        className={`flex-row items-start px-4 py-3 ${isReply ? 'bg-gray-50/50' : 'bg-white'} flex`}
+        className={`relative flex-row items-start px-4 py-3 ${isReply ? 'bg-gray-50/50' : 'bg-white'} flex`}
       >
         {isReply && (
-          <div className="absolute left-5 top-4 mr-1">
+          <div className="absolute left-3 top-3.5">
             <ReplyTurnIcon size={16} color="#9CA3AF" />
           </div>
         )}
 
-        <div className="flex-1 ml-0">
+        <div className={`flex-1 ${isReply ? 'pl-6' : 'ml-0'}`}>
           <div className="flex-row justify-between items-start mb-2 flex">
             <div className="flex-row items-center gap-2 flex">
               <div className="w-8 h-8 rounded-full items-center justify-center flex overflow-hidden">
@@ -581,14 +642,14 @@ const CommentCard = ({
                 <button
                   type="button"
                   onClick={() => setShowMenu((prev) => !prev)}
-                  className="p-1.5 active:opacity-70"
+                  className="p-2 active:opacity-70"
                   aria-label="comment actions"
                 >
-                  <MoreVerticalIcon size={17} color="#9CA3AF" />
+                  <MoreVerticalIcon size={18} color="#9CA3AF" />
                 </button>
 
                 {showMenu && (
-                  <div className="absolute right-0 top-8 z-10 min-w-[110px] rounded-xl border border-gray-100 bg-white p-1.5 shadow-md">
+                  <div className="absolute right-0 top-10 z-10 min-w-[110px] rounded-xl border border-gray-100 bg-white p-1.5 shadow-md">
                     {canReport && (
                       <button
                         type="button"
@@ -596,9 +657,10 @@ const CommentCard = ({
                           setShowMenu(false);
                           onReport();
                         }}
-                        className="flex w-full items-center rounded-lg px-3 py-2 text-sm text-gray-700 active:bg-gray-50"
+                        className={menuItemNeutralClass}
                         aria-label="report comment"
                       >
+                        <ReportIcon size={14} color="#6B7280" />
                         신고
                       </button>
                     )}
@@ -609,9 +671,10 @@ const CommentCard = ({
                           setShowMenu(false);
                           onBlock();
                         }}
-                        className="flex w-full items-center rounded-lg px-3 py-2 text-sm text-red-600 active:bg-red-50"
+                        className={menuItemDangerClass}
                         aria-label="block user"
                       >
+                        <BlockIcon size={14} color="#DC2626" />
                         {blockLabel}
                       </button>
                     )}
@@ -622,7 +685,7 @@ const CommentCard = ({
                           setShowMenu(false);
                           onEdit();
                         }}
-                        className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-gray-700 active:bg-gray-50"
+                        className={menuItemNeutralClass}
                         aria-label="edit comment"
                       >
                         <PencilIcon size={14} color="#6B7280" />
@@ -636,7 +699,7 @@ const CommentCard = ({
                           setShowMenu(false);
                           onDelete();
                         }}
-                        className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-red-600 active:bg-red-50"
+                        className={menuItemDangerClass}
                         aria-label="delete comment"
                       >
                         <TrashIcon size={14} color="#DC2626" />
@@ -731,14 +794,26 @@ export default function ReplyDetailPage() {
     null,
   );
 
-  const fetchData = async () => {
+  const [startY, setStartY] = useState(0);
+  const [startX, setStartX] = useState(0);
+  const [pullY, setPullY] = useState(0);
+  const [isPulling, setIsPulling] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const PULL_MAX = 104;
+  const PULL_TRIGGER = 58;
+  const PULL_SNAP = 52;
+
+  const fetchData = async (showLoading = true) => {
     if (!questionInstanceId) {
       setError('질문 정보가 없습니다.');
-      setLoading(false);
+      if (showLoading) setLoading(false);
       return;
     }
     try {
-      setLoading(true);
+      if (showLoading) {
+        setLoading(true);
+      }
       setError(null);
 
       const token = await getItem('accessToken');
@@ -785,14 +860,37 @@ export default function ReplyDetailPage() {
       console.error('[답변 조회 에러]', e);
       setError(e?.message || '답변을 불러오는데 실패했습니다.');
     } finally {
-      setLoading(false);
+      if (showLoading) {
+        setLoading(false);
+      }
     }
   };
 
   useEffect(() => {
-    fetchData();
+    fetchData(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [questionInstanceId]);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    setPullY(PULL_SNAP);
+    const startedAt = Date.now();
+
+    try {
+      await fetchData(false);
+    } finally {
+      const elapsed = Date.now() - startedAt;
+      const remain = Math.max(0, 420 - elapsed);
+      if (remain > 0) {
+        await new Promise((resolve) => setTimeout(resolve, remain));
+      }
+      setRefreshing(false);
+      setPullY(0);
+      setStartY(0);
+      setStartX(0);
+      setIsPulling(false);
+    }
+  };
 
   const handleEditAnswer = (answer: Answer) => {
     setEditingAnswer(answer);
@@ -1198,55 +1296,118 @@ export default function ReplyDetailPage() {
   };
 
   const handleRootTouchStart = (event: TouchEvent<HTMLDivElement>) => {
-    if (!isIOS) return;
     const touch = event.touches[0];
     if (!touch) return;
 
-    swipeBackRef.current = {
-      tracking: touch.clientX <= 24,
-      startX: touch.clientX,
-      startY: touch.clientY,
-      triggered: false,
-    };
+    if (isIOS) {
+      swipeBackRef.current = {
+        tracking: touch.clientX <= 24,
+        startX: touch.clientX,
+        startY: touch.clientY,
+        triggered: false,
+      };
+    }
+
+    if (window.scrollY <= 0 && !refreshing) {
+      setStartY(touch.clientY);
+      setStartX(touch.clientX);
+      setIsPulling(true);
+    }
   };
 
   const handleRootTouchMove = (event: TouchEvent<HTMLDivElement>) => {
-    if (!isIOS) return;
-
     const touch = event.touches[0];
     if (!touch) return;
 
-    const swipeState = swipeBackRef.current;
-    if (!swipeState.tracking || swipeState.triggered) return;
+    if (isIOS) {
+      const swipeState = swipeBackRef.current;
+      if (swipeState.tracking && !swipeState.triggered) {
+        const deltaX = touch.clientX - swipeState.startX;
+        const deltaY = touch.clientY - swipeState.startY;
 
-    const deltaX = touch.clientX - swipeState.startX;
-    const deltaY = touch.clientY - swipeState.startY;
+        if (Math.abs(deltaY) > 48 && deltaX < 40) {
+          swipeBackRef.current.tracking = false;
+        }
 
-    if (Math.abs(deltaY) > 48 && deltaX < 40) {
-      swipeBackRef.current.tracking = false;
+        if (deltaX > 90 && Math.abs(deltaY) < 80) {
+          swipeBackRef.current.triggered = true;
+          swipeBackRef.current.tracking = false;
+          navigate(-1);
+          return;
+        }
+      }
+    }
+
+    if (!isPulling || startY === 0 || refreshing) return;
+
+    const deltaX = touch.clientX - startX;
+    const deltaY = touch.clientY - startY;
+
+    if (Math.abs(deltaX) > Math.abs(deltaY)) return;
+
+    if (deltaY > 0 && window.scrollY <= 0) {
+      const damped = Math.min(PULL_MAX, deltaY * 0.38);
+      setPullY(damped);
+      event.preventDefault();
       return;
     }
 
-    if (deltaX > 90 && Math.abs(deltaY) < 80) {
-      swipeBackRef.current.triggered = true;
-      swipeBackRef.current.tracking = false;
-      navigate(-1);
-    }
+    setPullY(0);
   };
 
-  const handleRootTouchEnd = () => {
+  const handleRootTouchEnd = async () => {
     swipeBackRef.current.tracking = false;
+
+    if (refreshing) return;
+
+    if (pullY >= PULL_TRIGGER) {
+      await handleRefresh();
+      return;
+    }
+
+    setPullY(0);
+    setStartY(0);
+    setStartX(0);
+    setIsPulling(false);
   };
 
   return (
     <div
-      className="min-h-screen bg-orange-50 pt-safe"
+      className="min-h-screen bg-orange-50 pt-safe overflow-hidden relative"
       onTouchStart={handleRootTouchStart}
       onTouchMove={handleRootTouchMove}
       onTouchEnd={handleRootTouchEnd}
     >
+      <div
+        className="absolute top-0 left-0 right-0 z-10 flex justify-center items-center pointer-events-none"
+        style={{
+          height: '56px',
+          transform: `translateY(${pullY - 56}px)`,
+          opacity: pullY > 8 ? 1 : 0,
+          transition: isPulling && !refreshing
+            ? 'none'
+            : 'transform 260ms cubic-bezier(0.22, 1, 0.36, 1), opacity 220ms ease',
+        }}
+      >
+        <div className="p-2.5 rounded-full bg-white/95 shadow-md backdrop-blur-[1px]">
+          <IoRefreshOutline
+            size={22}
+            className={`text-onsikku-dark-orange ${refreshing ? 'animate-spin' : ''}`}
+            style={{ transform: refreshing ? undefined : `rotate(${pullY * 2.4}deg)` }}
+          />
+        </div>
+      </div>
+
       {/* Header */}
-      <div className="mx-auto w-full max-w-md px-4 pt-4">
+      <div
+        className="mx-auto w-full max-w-md px-4 pt-4"
+        style={{
+          transform: `translateY(${pullY}px)`,
+          transition: isPulling && !refreshing
+            ? 'none'
+            : 'transform 300ms cubic-bezier(0.22, 1, 0.36, 1)',
+        }}
+      >
         <div className="px-0 py-2 flex-row items-center mb-2 flex">
           <button
             type="button"
@@ -1262,7 +1423,15 @@ export default function ReplyDetailPage() {
       </div>
 
       {/* Body scroll */}
-      <div className="mx-auto w-full max-w-md px-5 pb-[180px]">
+      <div
+        className="mx-auto w-full max-w-md px-5 pb-[180px]"
+        style={{
+          transform: `translateY(${pullY}px)`,
+          transition: isPulling && !refreshing
+            ? 'none'
+            : 'transform 300ms cubic-bezier(0.22, 1, 0.36, 1)',
+        }}
+      >
         {/* Question */}
         <div className="relative items-center mb-6 mt-2 px-2 pt-8">
           {loading ? (
