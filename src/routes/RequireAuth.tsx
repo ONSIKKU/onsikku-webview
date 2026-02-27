@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Navigate, Outlet } from "react-router-dom";
 import { getItem, removeItem, setItem } from "@/utils/AsyncStorage";
 import { refreshToken, setAccessToken } from "@/utils/api";
+import Skeleton from "@/components/Skeleton";
 
 const getAccessTokenExp = (accessToken: string): number | null => {
   try {
@@ -101,7 +102,15 @@ export default function RequireAuth() {
     })();
   }, []);
 
-  if (ok === null) return <div className="min-h-screen flex items-center justify-center text-sm text-gray-600">로딩 중...</div>;
+  if (ok === null)
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-orange-50">
+        <div className="flex flex-col items-center gap-3">
+          <Skeleton className="w-12 h-12 rounded-xl" />
+          <Skeleton className="w-20 h-4" />
+        </div>
+      </div>
+    );
   if (!ok) return <Navigate to="/" replace />;
   return <Outlet />;
 }

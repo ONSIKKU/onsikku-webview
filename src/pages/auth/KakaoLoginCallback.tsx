@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { setItem } from "@/utils/AsyncStorage";
 import { apiFetch, setAccessToken, type AuthResponse } from "@/utils/api";
+import Skeleton from "@/components/Skeleton";
 
 const API_BASE =
   (import.meta.env.VITE_API_BASE as string | undefined) || "https://api.onsikku.xyz";
@@ -109,11 +110,8 @@ export default function KakaoLoginCallback() {
     <div className="flex-1 min-h-screen flex flex-col items-center justify-center">
       {loading ? (
         <>
-          <div
-            className="h-10 w-10 animate-spin rounded-full border-4 border-gray-300 border-t-gray-600"
-            aria-label="loading"
-          />
-          <p className="mt-4">카카오 로그인 처리 중...</p>
+          <Skeleton className="w-14 h-14 rounded-2xl" />
+          <Skeleton className="w-40 h-4 mt-4" />
         </>
       ) : null}
     </div>

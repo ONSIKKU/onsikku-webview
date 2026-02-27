@@ -1,7 +1,7 @@
 import ActivitySummary from '@/components/history/ActivitySummary';
 import DateSelector from '@/components/history/DateSelector';
 import QuestionList from '@/components/history/QuestionList';
-import { getQuestionsByMonth, setAccessToken } from '@/utils/api';
+import { getMyPage, getQuestionsByMonth, setAccessToken } from '@/utils/api';
 import type { QuestionDetails } from '@/utils/api';
 import { getItem } from '@/utils/AsyncStorage';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -42,11 +42,12 @@ export default function HistoryPage() {
   const [tempMonth, setTempMonth] = useState(selectedMonth);
 
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
-  const [answeredOnly, setAnsweredOnly] = useState(false);
+  const [answerFilter, setAnswerFilter] = useState<'all' | 'answered' | 'pending'>('all');
   const [expandedWeekKeys, setExpandedWeekKeys] = useState<Set<string>>(
     new Set(),
   );
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   // Ensure URL always has params (for initial load consistency)
   useEffect(() => {
@@ -114,6 +115,23 @@ export default function HistoryPage() {
     fetchQuestions();
   }, [fetchQuestions]);
 
+  useEffect(() => {
+    const run = async () => {
+      try {
+        const token = await getItem('accessToken');
+        if (!token) return;
+        setAccessToken(token);
+
+        const me = await getMyPage();
+        setCurrentUserId(me.member?.id || null);
+      } catch (e) {
+        console.error('[기록 페이지] 현재 사용자 조회 에러', e);
+      }
+    };
+
+    run();
+  }, []);
+
   const updateDate = (y: number, m: number) => {
     setSearchParams({ year: String(y), month: String(m) }, { replace: true });
   };
@@ -148,7 +166,25 @@ export default function HistoryPage() {
     questionAssignmentId: string,
     question: string,
     questionInstanceId?: string,
+    status?: 'answered' | 'pending',
+    isMine?: boolean,
   ) => {
+    if (!questionAssignmentId) {
+      console.warn(
+        '[기록 페이지] questionAssignmentId가 없어서 이동할 수 없습니다.',
+      );
+      return;
+    }
+
+    if (status === 'pending' && isMine) {
+      const replyParams = new URLSearchParams({
+        questionAssignmentId,
+        question,
+      });
+      navigate(`/reply?${replyParams.toString()}`);
+      return;
+    }
+
     if (!questionInstanceId) {
       console.warn(
         '[기록 페이지] questionInstanceId가 없어서 상세보기로 이동할 수 없습니다.',
@@ -193,9 +229,32 @@ export default function HistoryPage() {
     selectedYear > currentYear ||
     (selectedYear === currentYear && selectedMonth >= currentMonth);
 
-  const displayedQuestions = answeredOnly
-    ? questions.filter((q) => q.state === 'ANSWERED')
-    : questions;
+  const displayedQuestions = useMemo(() => {
+    if (answerFilter === 'answered') {
+      return questions.filter((q) => q.state === 'ANSWERED');
+    }
+
+    if (answerFilter === 'pending') {
+      return questions.filter((q) => q.state !== 'ANSWERED');
+    }
+
+    return questions;
+  }, [answerFilter, questions]);
+
+  const cycleAnswerFilter = () => {
+    setAnswerFilter((prev) => {
+      if (prev === 'all') return 'answered';
+      if (prev === 'answered') return 'pending';
+      return 'all';
+    });
+  };
+
+  const answerFilterLabel =
+    answerFilter === 'all'
+      ? '전체'
+      : answerFilter === 'answered'
+        ? '답변 완료만'
+        : '답변 대기중';
 
   const getWeekMeta = (question: QuestionDetails) => {
     const source = question.sentAt || question.answeredAt;
@@ -295,15 +354,15 @@ export default function HistoryPage() {
             <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
               <button
                 type="button"
-                onClick={() => setAnsweredOnly((prev) => !prev)}
+                onClick={cycleAnswerFilter}
                 className={`whitespace-nowrap flex flex-row items-center px-3 py-1.5 rounded-xl border shadow-sm active:scale-95 transition-transform ${
-                  answeredOnly
+                  answerFilter !== 'all'
                     ? 'bg-onsikku-dark-orange text-white border-onsikku-dark-orange'
                     : 'bg-white text-gray-600 border-gray-100'
                 }`}
               >
                 <div className="font-sans text-sm font-medium">
-                  답변 완료만
+                  {answerFilterLabel}
                 </div>
               </button>
 
@@ -333,12 +392,14 @@ export default function HistoryPage() {
               questions={displayedQuestions}
               loading={loading}
               onQuestionPress={handleQuestionPress}
+              currentUserId={currentUserId}
             />
           ) : weekGroups.length === 0 ? (
             <QuestionList
               questions={displayedQuestions}
               loading={false}
               onQuestionPress={handleQuestionPress}
+              currentUserId={currentUserId}
             />
           ) : (
             <div className="space-y-3">
@@ -372,6 +433,7 @@ export default function HistoryPage() {
                           questions={group.items}
                           loading={false}
                           onQuestionPress={handleQuestionPress}
+                          currentUserId={currentUserId}
                         />
                       </div>
                     )}

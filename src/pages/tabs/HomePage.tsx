@@ -17,6 +17,7 @@ import { getRoleIconAndText } from '@/utils/labels';
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { IoRefreshOutline } from 'react-icons/io5';
+import Skeleton from '@/components/Skeleton';
 
 export default function HomePage() {
   const navigate = useNavigate();
@@ -237,9 +238,52 @@ export default function HomePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-orange-50 flex flex-col items-center justify-center gap-6 px-4">
-        <div className="h-12 w-12 animate-spin rounded-full border-4 border-orange-200 border-t-onsikku-dark-orange" />
-        <p className="font-sans text-gray-600 text-base">질문을 불러오는 중...</p>
+      <div className="min-h-screen bg-orange-50 px-5 pt-8">
+        <div className="space-y-6">
+          <div className="space-y-3">
+            <Skeleton className="h-4 w-32 rounded-md" />
+            <Skeleton className="h-9 w-64 rounded-xl" />
+          </div>
+
+          <div className="bg-white rounded-3xl p-5 shadow-sm space-y-4">
+            <div className="flex items-center justify-between">
+              <Skeleton className="h-5 w-24" />
+              <Skeleton className="h-5 w-16" />
+            </div>
+            <div className="flex gap-3">
+              {[...Array(4)].map((_, index) => (
+                <Skeleton key={index} className="w-10 h-10 rounded-full" />
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-white rounded-3xl p-6 shadow-sm space-y-4">
+            <Skeleton className="h-5 w-20" />
+            <Skeleton className="h-8 w-5/6" />
+            <Skeleton className="h-8 w-4/6" />
+            <div className="flex justify-end">
+              <Skeleton className="h-10 w-24 rounded-full" />
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <Skeleton className="h-7 w-28" />
+            <div className="bg-white rounded-3xl p-5 shadow-sm space-y-3">
+              <div className="flex justify-between items-center">
+                <Skeleton className="h-5 w-20" />
+                <Skeleton className="h-4 w-12" />
+              </div>
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-11/12" />
+              <Skeleton className="h-4 w-4/5" />
+            </div>
+            <div className="flex justify-center gap-2">
+              <Skeleton className="h-2 w-6 rounded-full" />
+              <Skeleton className="h-2 w-2 rounded-full" />
+              <Skeleton className="h-2 w-2 rounded-full" />
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -268,8 +312,16 @@ export default function HomePage() {
           transition: refreshing ? 'transform 0.2s ease' : 'transform 0s'
         }}
       >
-        <div className={`p-2 rounded-full bg-white shadow-md ${refreshing ? 'animate-spin' : ''}`}>
-          <IoRefreshOutline size={24} className="text-onsikku-dark-orange" style={{ transform: `rotate(${pullY * 2}deg)` }} />
+        <div className="p-2 rounded-full bg-white shadow-md">
+          {refreshing ? (
+            <Skeleton className="w-6 h-6 rounded-full" />
+          ) : (
+            <IoRefreshOutline
+              size={24}
+              className="text-onsikku-dark-orange"
+              style={{ transform: `rotate(${pullY * 2}deg)` }}
+            />
+          )}
         </div>
       </div>
 
@@ -318,11 +370,21 @@ export default function HomePage() {
             </div>
 
             {loadingAnswers ? (
-              <div className="w-full flex flex-col items-center justify-center py-8">
-                <div className="h-6 w-6 animate-spin rounded-full border-2 border-orange-200 border-t-onsikku-dark-orange" />
-                <p className="font-sans text-gray-500 mt-2 text-base">
-                  답변을 불러오는 중...
-                </p>
+              <div className="w-full py-3 space-y-3">
+                <div className="bg-white rounded-3xl p-5 shadow-sm space-y-3">
+                  <div className="flex justify-between items-center">
+                    <Skeleton className="h-5 w-20" />
+                    <Skeleton className="h-4 w-12" />
+                  </div>
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-11/12" />
+                  <Skeleton className="h-4 w-4/5" />
+                </div>
+                <div className="flex justify-center gap-2">
+                  <Skeleton className="h-2 w-6 rounded-full" />
+                  <Skeleton className="h-2 w-2 rounded-full" />
+                  <Skeleton className="h-2 w-2 rounded-full" />
+                </div>
               </div>
             ) : recentAnswersData.length === 0 ? (
               <div className="w-full flex items-center justify-center py-12 bg-white rounded-3xl shadow-sm">

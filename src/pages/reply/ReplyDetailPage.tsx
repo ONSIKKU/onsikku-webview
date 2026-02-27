@@ -26,8 +26,10 @@ import {
   type ReportTargetType,
 } from '@/utils/api';
 import { getItem } from '@/utils/AsyncStorage';
+import { formatDateYMDKo, formatTimeAgoKo } from '@/utils/dates';
 import { getRoleIconAndText } from '@/utils/labels';
 import RoleIcon from '@/components/RoleIcon';
+import Skeleton from '@/components/Skeleton';
 import { useModalStore } from '@/features/modal/modalStore';
 
 function ArrowBackIcon({ size = 24 }: { size?: number }) {
@@ -212,33 +214,9 @@ function MoreVerticalIcon({ size = 18, color = '#9CA3AF' }: { size?: number; col
   );
 }
 
-const formatTimeAgo = (dateString: string) => {
-  if (!dateString) return '';
-  const safe = dateString.endsWith('Z') ? dateString : dateString + 'Z';
-  const date = new Date(safe);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMin = Math.floor(diffMs / (1000 * 60));
-  const diffHour = Math.floor(diffMs / (1000 * 60 * 60));
-  const diffDay = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+const formatTimeAgo = (dateString: string) => formatTimeAgoKo(dateString);
 
-  if (diffMin < 1) return '방금 전';
-  if (diffMin < 60) return `${diffMin}분 전`;
-  if (diffHour < 24) return `${diffHour}시간 전`;
-  if (diffDay < 7) return `${diffDay}일 전`;
-
-  return date.toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' });
-};
-
-const formatDateSimple = (dateString: string) => {
-  if (!dateString) return '';
-  const safe = dateString.endsWith('Z') ? dateString : dateString + 'Z';
-  const date = new Date(safe);
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
-  return `${y}.${m}.${d}`;
-};
+const formatDateSimple = (dateString: string) => formatDateYMDKo(dateString);
 
 const getContentText = (content: any): string => {
   if (typeof content === 'string') return content;
@@ -1138,27 +1116,64 @@ export default function ReplyDetailPage() {
       <div className="mx-auto w-full max-w-md px-5 pb-[180px]">
         {/* Question */}
         <div className="relative items-center mb-6 mt-2 px-2 pt-8">
-          {questionSentAt && (
+          {loading ? (
+            <div className="absolute right-0 top-0">
+              <Skeleton className="h-7 w-20 rounded-full" />
+            </div>
+          ) : questionSentAt && (
             <div className="absolute right-0 top-0 bg-orange-100 px-3 py-1 rounded-full">
               <div className="font-sans text-xs text-orange-600 font-medium">
                 {formatDateSimple(questionSentAt)}
               </div>
             </div>
           )}
-          <div
-            className="w-full min-w-0 font-sans text-2xl font-bold leading-9 text-center text-gray-900 break-words whitespace-pre-wrap"
-            style={{ wordBreak: 'keep-all', overflowWrap: 'break-word' }}
-          >
-            <span className="text-orange-500">Q. </span>
-            {questionContent || question}
-          </div>
+          {loading ? (
+            <div className="space-y-3 w-full">
+              <Skeleton className="h-7 w-4/5 mx-auto" />
+              <Skeleton className="h-7 w-3/5 mx-auto" />
+            </div>
+          ) : (
+            <div
+              className="w-full min-w-0 font-sans text-2xl font-bold leading-9 text-center text-gray-900 break-words whitespace-pre-wrap"
+              style={{ wordBreak: 'keep-all', overflowWrap: 'break-word' }}
+            >
+              <span className="text-orange-500">Q. </span>
+              {questionContent || question}
+            </div>
+          )}
         </div>
 
         {/* Answers */}
         <div>
           {loading ? (
-            <div className="py-10 items-center flex justify-center">
-              <div className="h-8 w-8 animate-spin rounded-full border-4 border-orange-200 border-t-onsikku-dark-orange" />
+            <div className="space-y-4 py-2">
+              <div className="py-1 mb-1 flex-row justify-between items-center flex">
+                <Skeleton className="h-6 w-24" />
+              </div>
+              {[...Array(2)].map((_, index) => (
+                <div key={index} className="bg-white rounded-3xl p-5 shadow-sm">
+                  <div className="flex items-center gap-3 mb-3">
+                    <Skeleton className="w-11 h-11 rounded-full" />
+                    <div className="flex-1">
+                      <Skeleton className="h-4 w-24 mb-2" />
+                      <Skeleton className="h-3 w-16" />
+                    </div>
+                  </div>
+                  <Skeleton className="h-4 w-full mb-2" />
+                  <Skeleton className="h-4 w-4/5 mb-4" />
+                  <div className="pt-3 border-t border-gray-100 flex gap-4">
+                    <Skeleton className="h-4 w-10" />
+                    <Skeleton className="h-4 w-10" />
+                    <Skeleton className="h-4 w-10" />
+                    <Skeleton className="h-4 w-10" />
+                  </div>
+                  <div className="mt-4 space-y-2">
+                    <Skeleton className="h-3 w-24" />
+                    <Skeleton className="h-3 w-full" />
+                    <Skeleton className="h-3 w-5/6" />
+                  </div>
+                </div>
+              ))}
             </div>
           ) : (
             <>

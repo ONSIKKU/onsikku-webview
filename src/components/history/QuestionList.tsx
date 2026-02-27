@@ -1,6 +1,7 @@
 import type { QuestionDetails } from '@/utils/api';
 import { getRoleIconAndText } from '@/utils/labels';
 import QuestionCard, { type Question } from './QuestionCard';
+import Skeleton from '@/components/Skeleton';
 
 interface QuestionListProps {
   questions: QuestionDetails[];
@@ -9,7 +10,10 @@ interface QuestionListProps {
     questionAssignmentId: string,
     question: string,
     questionInstanceId?: string,
+    status?: 'answered' | 'pending',
+    isMine?: boolean,
   ) => void;
+  currentUserId?: string | null;
 }
 
 const formatDate = (dateString: string) => {
@@ -25,16 +29,21 @@ export default function QuestionList({
   questions,
   loading,
   onQuestionPress,
+  currentUserId,
 }: QuestionListProps) {
   const convertedQuestions: Question[] = questions.map((q) => {
     const { icon, text } = getRoleIconAndText(q.familyRole, q.gender);
+    const status: 'answered' | 'pending' = q.state === 'ANSWERED' ? 'answered' : 'pending';
+    const isMine = Boolean(currentUserId && q.member?.id && q.member.id === currentUserId);
+
     return {
       id: q.questionInstanceId,
       date: formatDate(q.sentAt || ''),
       author: text,
       authorAvatar: icon,
       question: q.questionContent,
-      status: q.state === 'ANSWERED' ? 'answered' : 'pending',
+      status,
+      isMine,
       questionAssignmentId: q.questionAssignmentId,
       questionInstanceId: q.questionInstanceId,
     };
@@ -43,11 +52,21 @@ export default function QuestionList({
   if (loading) {
     return (
       <div className="w-full">
-        <div className="bg-white p-6 rounded-2xl shadow-sm items-center justify-center flex flex-col">
-          <div className="h-6 w-6 animate-spin rounded-full border-2 border-orange-200 border-t-onsikku-dark-orange" />
-          <div className="font-sans text-gray-500 mt-4 text-base">
-            질문을 불러오는 중...
-          </div>
+        <div className="flex flex-col" style={{ gap: 12 }}>
+          {[...Array(4)].map((_, index) => (
+            <div key={index} className="bg-white p-5 rounded-2xl shadow-sm">
+              <div className="flex items-center justify-between mb-3">
+                <Skeleton className="h-5 w-14" />
+                <div className="flex items-center gap-2">
+                  <Skeleton className="w-8 h-8 rounded-full" />
+                  <Skeleton className="h-4 w-14" />
+                </div>
+              </div>
+              <Skeleton className="h-4 w-full mb-2" />
+              <Skeleton className="h-4 w-4/5 mb-3" />
+              <Skeleton className="h-6 w-16 rounded-full" />
+            </div>
+          ))}
         </div>
       </div>
     );
@@ -69,22 +88,33 @@ export default function QuestionList({
     <div className="w-full">
       <div className="flex flex-col" style={{ gap: 12 }}>
         {convertedQuestions.map((item) => (
-          <QuestionCard
-            key={item.id}
-            item={item}
-            onPress={
-              item.questionAssignmentId &&
-              item.questionInstanceId &&
-              onQuestionPress
-                ? () =>
-                    onQuestionPress(
-                      item.questionAssignmentId!,
-                      item.question,
-                      item.questionInstanceId,
-                    )
-                : undefined
-            }
-          />
+          (() => {
+            const canPressAnswered = item.status === 'answered';
+            const canPressPendingMine = item.status === 'pending' && item.isMine;
+            const canPress = canPressAnswered || canPressPendingMine;
+
+            return (
+              <QuestionCard
+                key={item.id}
+                item={item}
+                onPress={
+                  canPress &&
+                  item.questionAssignmentId &&
+                  item.questionInstanceId &&
+                  onQuestionPress
+                    ? () =>
+                        onQuestionPress(
+                          item.questionAssignmentId!,
+                          item.question,
+                          item.questionInstanceId,
+                          item.status,
+                          item.isMine,
+                        )
+                    : undefined
+                }
+              />
+            );
+          })()
         ))}
       </div>
     </div>

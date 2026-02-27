@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import { IoLogoApple } from 'react-icons/io5';
 import kakaoLogin from '@/assets/images/kakao_login_large_wide.png';
-import mainLogo from '@/assets/images/onsikku-main-logo.png';
+import mainLogo from '@/assets/images/onsikku_main.png';
 import { getItem } from '@/utils/AsyncStorage';
 
 export default function LandingPage() {

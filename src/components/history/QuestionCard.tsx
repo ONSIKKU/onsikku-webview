@@ -8,6 +8,7 @@ export interface Question {
   authorAvatar: string;
   question: string;
   status: 'answered' | 'pending';
+  isMine?: boolean;
   questionAssignmentId?: string;
   questionInstanceId?: string;
   reactions?: {
@@ -37,7 +38,7 @@ export default function QuestionCard({
     <button
       type="button"
       onClick={onPress}
-      disabled={isPending || !onPress}
+      disabled={!onPress}
       className={`w-full p-5 rounded-3xl shadow-sm border border-gray-100 text-left active:scale-[0.98] transition-transform ${
         isPending ? 'bg-gray-50' : 'bg-white'
       }`}
@@ -66,7 +67,14 @@ export default function QuestionCard({
 
       <div className="flex flex-row items-center justify-between mt-2">
         {isPending ? (
-          <div className="font-sans text-base text-gray-500">답변 대기 중</div>
+          <>
+            <div className="font-sans text-base text-gray-500">답변 대기 중</div>
+            {item.isMine && onPress && (
+              <div className="font-sans text-xs font-semibold text-onsikku-dark-orange bg-orange-50 border border-orange-200 rounded-full px-2.5 py-1">
+                답변하기
+              </div>
+            )}
+          </>
         ) : (
           <div className="font-sans text-base font-semibold text-onsikku-dark-orange">
             답변 완료

@@ -6,6 +6,7 @@ import { ensurePushPermissionAndRegister, unregisterPushNotifications } from '@/
 import { genderToKo, getApiFamilyRole } from '@/utils/labels';
 import { IoArrowBack, IoCalendarOutline } from 'react-icons/io5';
 import { useModalStore } from '@/features/modal/modalStore';
+import Skeleton from '@/components/Skeleton';
 
 export default function MyPageEdit() {
   const navigate = useNavigate();
@@ -161,7 +162,32 @@ export default function MyPageEdit() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-orange-50">
-        <p className="font-sans text-gray-600">불러오는 중...</p>
+        <div className="w-full max-w-md px-6 pt-4 space-y-5">
+          <div className="flex items-center gap-4">
+            <Skeleton className="w-10 h-10 rounded-full" />
+            <Skeleton className="h-6 w-28" />
+          </div>
+
+          <div className="bg-white rounded-3xl p-6 shadow-sm space-y-3">
+            <Skeleton className="h-5 w-16" />
+            <Skeleton className="h-12 w-full rounded-xl" />
+          </div>
+
+          <div className="bg-white rounded-3xl p-6 shadow-sm space-y-3">
+            <Skeleton className="h-5 w-12" />
+            <div className="flex gap-3">
+              <Skeleton className="h-12 flex-1 rounded-xl" />
+              <Skeleton className="h-12 flex-1 rounded-xl" />
+            </div>
+          </div>
+
+          <div className="bg-white rounded-3xl p-6 shadow-sm space-y-3">
+            <Skeleton className="h-5 w-20" />
+            <Skeleton className="h-12 w-full rounded-xl" />
+          </div>
+
+          <Skeleton className="h-14 w-full rounded-full" />
+        </div>
       </div>
     );
   }

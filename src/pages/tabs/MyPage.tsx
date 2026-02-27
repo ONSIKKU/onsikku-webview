@@ -28,6 +28,7 @@ import {
 } from 'react-icons/io5';
 import RoleIcon from '@/components/RoleIcon';
 import { useModalStore } from '@/features/modal/modalStore';
+import Skeleton from '@/components/Skeleton';
 
 export default function MyPage() {
   const navigate = useNavigate();
@@ -205,7 +206,37 @@ export default function MyPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-orange-50 flex items-center justify-center">
-        <p className="font-sans text-gray-500">불러오는 중...</p>
+        <div className="w-full px-5 pt-8 space-y-5">
+          <Skeleton className="h-9 w-24 rounded-xl" />
+
+          <div className="bg-white rounded-3xl p-6 shadow-sm space-y-4">
+            <div className="flex justify-between items-center">
+              <Skeleton className="h-6 w-20" />
+              <Skeleton className="h-8 w-16 rounded-xl" />
+            </div>
+            {[...Array(5)].map((_, index) => (
+              <div key={index} className="flex justify-between items-center">
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-4 w-28" />
+              </div>
+            ))}
+          </div>
+
+          <div className="bg-white rounded-3xl p-6 shadow-sm space-y-4">
+            <Skeleton className="h-6 w-24" />
+            {[...Array(3)].map((_, index) => (
+              <div key={index} className="flex items-center gap-3">
+                <Skeleton className="w-10 h-10 rounded-full" />
+                <Skeleton className="h-4 w-36" />
+              </div>
+            ))}
+          </div>
+
+          <div className="bg-white rounded-3xl p-6 shadow-sm space-y-3">
+            <Skeleton className="h-6 w-16" />
+            <Skeleton className="h-12 w-full rounded-xl" />
+          </div>
+        </div>
       </div>
     );
   }

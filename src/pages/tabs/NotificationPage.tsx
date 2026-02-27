@@ -12,26 +12,9 @@ import {
 } from '@/utils/api';
 import { getItem } from '@/utils/AsyncStorage';
 import { getRoleIconAndText } from '@/utils/labels';
+import { formatTimeAgoKo } from '@/utils/dates';
 import type { Notification } from '@/components/notification/NotificationCard';
 import { useNotificationStore } from '@/features/notification/notificationStore';
-
-const formatTimeAgo = (dateString: string) => {
-  if (!dateString) return '';
-  const safe = dateString.endsWith('Z') ? dateString : dateString + 'Z';
-  const date = new Date(safe);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMin = Math.floor(diffMs / (1000 * 60));
-  const diffHour = Math.floor(diffMs / (1000 * 60 * 60));
-  const diffDay = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-  if (diffMin < 1) return '방금 전';
-  if (diffMin < 60) return `${diffMin}분 전`;
-  if (diffHour < 24) return `${diffHour}시간 전`;
-  if (diffDay < 7) return `${diffDay}일 전`;
-
-  return date.toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' });
-};
 
 export default function NotificationPage() {
   const navigate = useNavigate();
@@ -57,14 +40,18 @@ export default function NotificationPage() {
           : { icon: '📢', text: '알림' };
 
         // Map backend types to UI types
-        let uiType: Notification['type'] = 'comment';
+        let uiType: Notification['type'] = 'system_notice';
         switch (item.notificationType) {
           case 'COMMENT_ADDED': uiType = 'comment'; break;
           case 'REACTION_ADDED': uiType = 'reaction'; break;
           case 'ANSWER_ADDED': uiType = 'answer'; break;
-          case 'TODAY_TARGET_MEMBER_ANNOUNCED': uiType = 'all_answered'; break;
+          case 'TODAY_TARGET_MEMBER_ANNOUNCED': uiType = 'target_announced'; break;
           case 'TODAY_TARGET_MEMBER': uiType = 'new_question'; break;
-          default: uiType = 'comment'; break;
+          case 'KNOCK_KNOCK': uiType = 'knock_knock'; break;
+          case 'MEMBER_JOINED': uiType = 'member_joined'; break;
+          case 'WEEKLY_REPORT': uiType = 'weekly_report'; break;
+          case 'SYSTEM_NOTICE': uiType = 'system_notice'; break;
+          default: uiType = 'system_notice'; break;
         }
 
         // Extract related ID from payload or deepLink
@@ -84,7 +71,7 @@ export default function NotificationPage() {
           actor: text,
           actorAvatar: icon,
           message: item.body || item.title,
-          time: formatTimeAgo(item.publishedAt),
+          time: formatTimeAgoKo(item.publishedAt),
           isRead: !!(item.readAt || item.confirmedAt),
           relatedEntityId: relatedId || undefined,
         };
@@ -171,17 +158,23 @@ export default function NotificationPage() {
       await handleRead(item.id);
     }
 
-    if (!item.relatedEntityId) return;
-
     switch (item.type) {
       case 'comment':
       case 'reaction':
       case 'answer':
       case 'all_answered':
+        if (!item.relatedEntityId) return;
         navigate(`/reply-detail?questionInstanceId=${item.relatedEntityId}`);
         break;
       case 'new_question':
+      case 'knock_knock':
+        if (!item.relatedEntityId) return;
         navigate(`/reply?questionAssignmentId=${item.relatedEntityId}`);
+        break;
+      case 'target_announced':
+      case 'member_joined':
+      case 'weekly_report':
+      case 'system_notice':
         break;
       default:
         break;
