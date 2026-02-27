@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { getItem } from '@/utils/AsyncStorage';
 import { createAnswer, setAccessToken } from '@/utils/api';
@@ -55,6 +55,7 @@ function SendIcon({ size = 20 }: { size?: number }) {
 export default function ReplyPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const replyInputRef = useRef<HTMLTextAreaElement | null>(null);
 
   const query = useMemo(
     () => new URLSearchParams(location.search),
@@ -71,6 +72,17 @@ export default function ReplyPage() {
   }, []);
 
   const canSubmit = reply.trim().length > 0 && !submitting;
+
+  const resizeReplyInput = () => {
+    const el = replyInputRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 260)}px`;
+  };
+
+  useEffect(() => {
+    resizeReplyInput();
+  }, [reply]);
 
   const handleSubmit = async () => {
     try {
@@ -139,13 +151,17 @@ export default function ReplyPage() {
         </div>
 
         {/* Input */}
-        <div className="bg-white rounded-3xl p-5 shadow-sm flex-1 flex flex-col">
+        <div className="bg-white rounded-3xl p-5 shadow-sm">
           <textarea
-            className="w-full flex-1 min-h-[260px] resize-none bg-transparent font-sans text-base text-gray-900 outline-none"
+            ref={replyInputRef}
+            rows={4}
+            className="w-full min-h-[112px] max-h-[260px] overflow-y-auto resize-none bg-transparent font-sans text-base text-gray-900 outline-none"
             placeholder="답변을 입력해주세요..."
             value={reply}
             maxLength={MAX_LEN}
-            onChange={(e) => setReply(e.target.value)}
+            onChange={(e) => {
+              setReply(e.target.value);
+            }}
           />
           <div className="flex justify-end mt-2">
             <div className="font-sans text-xs text-gray-400">

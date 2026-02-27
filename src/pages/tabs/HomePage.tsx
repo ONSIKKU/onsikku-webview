@@ -46,6 +46,11 @@ export default function HomePage() {
   const [isPulling, setIsPulling] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
+  const [carouselTouchStartX, setCarouselTouchStartX] = useState(0);
+  const [carouselTouchStartY, setCarouselTouchStartY] = useState(0);
+  const [carouselDragX, setCarouselDragX] = useState(0);
+  const [isCarouselDragging, setIsCarouselDragging] = useState(false);
+
   const PULL_MAX = 104;
   const PULL_TRIGGER = 58;
   const PULL_SNAP = 52;
@@ -248,11 +253,47 @@ export default function HomePage() {
 
   const displayQuestionInstanceId = questionInstanceId;
 
-  const handleCarouselScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    const el = e.currentTarget;
-    const w = el.clientWidth || 1;
-    const idx = Math.round(el.scrollLeft / w);
-    setActiveIndex(idx);
+  const onCarouselTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (recentAnswersData.length <= 1) return;
+    const touch = e.touches[0];
+    setCarouselTouchStartX(touch.clientX);
+    setCarouselTouchStartY(touch.clientY);
+    setCarouselDragX(0);
+    setIsCarouselDragging(true);
+  };
+
+  const onCarouselTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (!isCarouselDragging) return;
+
+    const touch = e.touches[0];
+    const deltaX = touch.clientX - carouselTouchStartX;
+    const deltaY = touch.clientY - carouselTouchStartY;
+
+    if (Math.abs(deltaX) <= Math.abs(deltaY)) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    const clamped = Math.max(-72, Math.min(72, deltaX * 0.36));
+    setCarouselDragX(clamped);
+  };
+
+  const onCarouselTouchEnd = () => {
+    if (!isCarouselDragging) return;
+
+    const threshold = 24;
+    const lastIndex = Math.max(0, recentAnswersData.length - 1);
+    let nextIndex = activeIndex;
+
+    if (carouselDragX <= -threshold) {
+      nextIndex = Math.min(activeIndex + 1, lastIndex);
+    } else if (carouselDragX >= threshold) {
+      nextIndex = Math.max(activeIndex - 1, 0);
+    }
+
+    setActiveIndex(nextIndex);
+    setCarouselDragX(0);
+    setIsCarouselDragging(false);
   };
 
   if (loading) {
@@ -416,30 +457,42 @@ export default function HomePage() {
             ) : (
               <>
                 <div
-                  onScroll={handleCarouselScroll}
-                  className="w-full overflow-x-auto flex snap-x snap-mandatory scroll-smooth pb-4 -mb-4 no-scrollbar"
+                  className="w-full overflow-hidden pb-4 -mb-4"
+                  onTouchStart={onCarouselTouchStart}
+                  onTouchMove={onCarouselTouchMove}
+                  onTouchEnd={onCarouselTouchEnd}
                 >
-                  {recentAnswersData.map((item, index) => (
-                    <div
-                      key={index}
-                      className="w-full flex-shrink-0 snap-center px-1"
-                    >
-                      <RecentAnswers
-                        roleName={item.roleName}
-                        date={item.date}
-                        content={item.content}
-                        roleIcon={item.roleIcon}
-                        onPress={() => {
-                          if (!item.questionInstanceId) return;
-                          navigate(
-                            `/reply-detail?questionInstanceId=${encodeURIComponent(
-                              item.questionInstanceId,
-                            )}&question=${encodeURIComponent(item.question)}`,
-                          );
-                        }}
-                      />
-                    </div>
-                  ))}
+                  <div
+                    className="flex"
+                    style={{
+                      transform: `translate3d(calc(${-activeIndex * 100}% + ${carouselDragX}px), 0, 0)`,
+                      transition: isCarouselDragging
+                        ? 'none'
+                        : 'transform 420ms cubic-bezier(0.22, 1, 0.36, 1)',
+                    }}
+                  >
+                    {recentAnswersData.map((item, index) => (
+                      <div
+                        key={index}
+                        className="w-full flex-shrink-0 px-1"
+                      >
+                        <RecentAnswers
+                          roleName={item.roleName}
+                          date={item.date}
+                          content={item.content}
+                          roleIcon={item.roleIcon}
+                          onPress={() => {
+                            if (!item.questionInstanceId) return;
+                            navigate(
+                              `/reply-detail?questionInstanceId=${encodeURIComponent(
+                                item.questionInstanceId,
+                              )}&question=${encodeURIComponent(item.question)}`,
+                            );
+                          }}
+                        />
+                      </div>
+                    ))}
+                  </div>
                 </div>
 
                 <div className="flex-row justify-center items-center gap-1.5 mt-4 flex">

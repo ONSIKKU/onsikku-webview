@@ -3,6 +3,7 @@ import {
   type PointerEvent,
   type TouchEvent,
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -240,19 +241,99 @@ const REPORT_REASON_OPTIONS: Array<{ value: ReportReason; label: string }> = [
 
 type ReactionKind = 'LIKE' | 'ANGRY' | 'SAD' | 'FUNNY';
 
+const ReactionIcon = ({
+  kind,
+  active,
+}: {
+  kind: ReactionKind;
+  active: boolean;
+}) => {
+  const uid = useId();
+
+  if (kind === 'LIKE') {
+    const gradientId = `${uid}-orangeGrad`;
+    return (
+      <svg width="18" height="18" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style={{ opacity: active ? 1 : 0.9 }}>
+        <defs>
+          <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#FFB75E" />
+            <stop offset="100%" stopColor="#FF8A4C" />
+          </linearGradient>
+        </defs>
+        <path d="M32 55 C32 55 8 38 8 22 A13 13 0 0 1 32 15 A13 13 0 0 1 56 22 C56 38 32 55 32 55 Z" fill={`url(#${gradientId})`} />
+      </svg>
+    );
+  }
+
+  if (kind === 'FUNNY') {
+    const gradientId = `${uid}-orangeGrad2`;
+    return (
+      <svg width="18" height="18" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style={{ opacity: active ? 1 : 0.9 }}>
+        <defs>
+          <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#FFC074" />
+            <stop offset="100%" stopColor="#FF8A4C" />
+          </linearGradient>
+        </defs>
+        <circle cx="32" cy="32" r="26" fill={`url(#${gradientId})`} />
+        <path d="M20 26 Q23 20 26 26" stroke="#FFFFFF" strokeWidth="3" fill="none" strokeLinecap="round" />
+        <path d="M38 26 Q41 20 44 26" stroke="#FFFFFF" strokeWidth="3" fill="none" strokeLinecap="round" />
+        <path d="M20 36 Q32 52 44 36 Z" fill="#FFFFFF" />
+      </svg>
+    );
+  }
+
+  if (kind === 'SAD') {
+    const gradientId = `${uid}-grayGrad`;
+    return (
+      <svg width="18" height="18" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style={{ opacity: active ? 1 : 0.9 }}>
+        <defs>
+          <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#D9D9D9" />
+            <stop offset="100%" stopColor="#A6A6A6" />
+          </linearGradient>
+        </defs>
+        <circle cx="32" cy="32" r="26" fill={`url(#${gradientId})`} />
+        <circle cx="23" cy="26" r="3" fill="#666666" />
+        <circle cx="41" cy="26" r="3" fill="#666666" />
+        <path d="M23 42 Q32 36 41 42" stroke="#666666" strokeWidth="3" fill="none" strokeLinecap="round" />
+        <path d="M46 34 C46 34 50 42 46 46 C42 42 46 34 46 34 Z" fill="#E6E6E6" />
+      </svg>
+    );
+  }
+
+  const gradientId = `${uid}-darkOrangeGrad`;
+  return (
+    <svg width="18" height="18" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style={{ opacity: active ? 1 : 0.9 }}>
+      <defs>
+        <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#FF9B74" />
+          <stop offset="100%" stopColor="#E85D34" />
+        </linearGradient>
+      </defs>
+      <circle cx="32" cy="32" r="26" fill={`url(#${gradientId})`} />
+      <path d="M16 22 L26 28" stroke="#FFFFFF" strokeWidth="3" strokeLinecap="round" />
+      <path d="M48 22 L38 28" stroke="#FFFFFF" strokeWidth="3" strokeLinecap="round" />
+      <circle cx="23" cy="32" r="3" fill="#FFFFFF" />
+      <circle cx="41" cy="32" r="3" fill="#FFFFFF" />
+      <path d="M24 44 L40 44" stroke="#FFFFFF" strokeWidth="3" strokeLinecap="round" />
+    </svg>
+  );
+};
+
 type ReactionEvent =
   | MouseEvent<HTMLButtonElement>
   | TouchEvent<HTMLButtonElement>
   | PointerEvent<HTMLButtonElement>;
 
 const ReactionButton = ({
-  icon,
+  kind,
   count,
   isActive,
   onPress,
   disabled,
 }: {
-  icon: string;
+  kind: ReactionKind;
   count: number;
   isActive: boolean;
   onPress: () => void;
@@ -273,15 +354,27 @@ const ReactionButton = ({
       onPointerUp={handlePress}
       style={{ pointerEvents: 'auto' }}
       disabled={disabled}
-      className={`flex-row items-center gap-1 flex ${
-        disabled ? 'opacity-50 cursor-not-allowed' : 'active:opacity-70'
+      className={`flex min-w-[68px] items-center justify-center gap-1.5 rounded-full border px-3 py-1.5 transition-[background-color,border-color,color,box-shadow,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+        disabled
+          ? 'opacity-50 cursor-not-allowed'
+          : 'active:scale-[0.97] active:opacity-95'
       } ${
-        isActive ? 'text-orange-500' : 'text-gray-500'
+        isActive
+          ? 'border-orange-200 bg-orange-50/95 text-orange-600 shadow-[0_6px_14px_rgba(251,146,60,0.18)] -translate-y-[1px]'
+          : 'border-gray-100 bg-gray-50/80 text-gray-500'
       }`}
     >
-      <span className="text-base">{icon}</span>
       <span
-        className={`font-sans text-sm ${isActive ? 'text-orange-500' : 'text-gray-500'}`}
+        className={`text-base transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+          isActive ? 'scale-110 -translate-y-[0.5px]' : 'scale-100'
+        }`}
+      >
+        <ReactionIcon kind={kind} active={isActive} />
+      </span>
+      <span
+        className={`font-sans text-sm font-medium transition-[color,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+          isActive ? 'text-orange-600' : 'text-gray-500'
+        }`}
       >
         {count}
       </span>
@@ -320,10 +413,10 @@ const FeedCard = ({
   const { icon: roleIcon, text: roleText } = getRoleIconAndText(role, gender);
 
   const reactions = [
-    { type: 'LIKE' as const, icon: '👍', count: answer.likeReactionCount },
-    { type: 'FUNNY' as const, icon: '😂', count: answer.funnyReactionCount },
-    { type: 'SAD' as const, icon: '😢', count: answer.sadReactionCount },
-    { type: 'ANGRY' as const, icon: '😡', count: answer.angryReactionCount },
+    { type: 'LIKE' as const, count: answer.likeReactionCount },
+    { type: 'FUNNY' as const, count: answer.funnyReactionCount },
+    { type: 'SAD' as const, count: answer.sadReactionCount },
+    { type: 'ANGRY' as const, count: answer.angryReactionCount },
   ];
 
   return (
@@ -409,11 +502,11 @@ const FeedCard = ({
       </div>
 
       {/* Reactions */}
-      <div className="flex-row items-center justify-between pt-4 border-t border-gray-100 flex">
+      <div className="flex flex-row flex-wrap items-center gap-2 pt-4 border-t border-gray-100">
         {reactions.map((reaction) => (
           <ReactionButton
             key={reaction.type}
-            icon={reaction.icon}
+            kind={reaction.type}
             count={reaction.count || 0}
             isActive={answer.myReaction === reaction.type}
             disabled={disableReaction}
