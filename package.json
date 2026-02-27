@@ -18,6 +18,7 @@
     "@capacitor/cli": "^7.0.0",
     "@capacitor/core": "^7.0.0",
     "@capacitor/ios": "^7.0.0",
+    "@capacitor/keyboard": "^7.0.4",
     "@capacitor/push-notifications": "^7.0.0",
     "capacitor": "^0.5.6",
     "firebase": "^11.10.0",

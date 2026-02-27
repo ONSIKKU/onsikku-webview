@@ -10,6 +10,7 @@ import {
 } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
+import { Keyboard, KeyboardResize } from '@capacitor/keyboard';
 import { IoRefreshOutline } from 'react-icons/io5';
 import type { Answer, Comment } from '@/utils/api';
 import {
@@ -793,6 +794,12 @@ export default function ReplyDetailPage() {
   const [replyingToComment, setReplyingToComment] = useState<Comment | null>(
     null,
   );
+  const commentInputRef = useRef<HTMLTextAreaElement | null>(null);
+  const rootCommentRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const commentsTopRef = useRef<HTMLDivElement | null>(null);
+  const commentsBottomRef = useRef<HTMLDivElement | null>(null);
+  const [keyboardInset, setKeyboardInset] = useState(0);
+  const COMMENT_INPUT_MAX_HEIGHT = 96;
 
   const [startY, setStartY] = useState(0);
   const [startX, setStartX] = useState(0);
@@ -871,6 +878,77 @@ export default function ReplyDetailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [questionInstanceId]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    if (isIOS) {
+      const listeners: Array<{ remove: () => Promise<void> }> = [];
+      let disposed = false;
+
+      const setupIOSKeyboard = async () => {
+        try {
+          await Keyboard.setResizeMode({ mode: KeyboardResize.None });
+        } catch (error) {
+          console.warn('[Keyboard] iOS resize mode 설정 실패', error);
+        }
+
+        const showListener = await Keyboard.addListener(
+          'keyboardWillShow',
+          (info) => {
+            if (disposed) return;
+            setKeyboardInset(Math.max(0, info.keyboardHeight));
+          },
+        );
+
+        const hideListener = await Keyboard.addListener('keyboardWillHide', () => {
+          if (disposed) return;
+          setKeyboardInset(0);
+        });
+
+        listeners.push(showListener, hideListener);
+      };
+
+      setupIOSKeyboard();
+
+      return () => {
+        disposed = true;
+        listeners.forEach((listener) => {
+          void listener.remove();
+        });
+      };
+    }
+
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+
+    const updateKeyboardInset = () => {
+      const inset = Math.max(
+        0,
+        window.innerHeight - viewport.height - viewport.offsetTop,
+      );
+      setKeyboardInset(inset);
+    };
+
+    updateKeyboardInset();
+    viewport.addEventListener('resize', updateKeyboardInset);
+    viewport.addEventListener('scroll', updateKeyboardInset);
+
+    return () => {
+      viewport.removeEventListener('resize', updateKeyboardInset);
+      viewport.removeEventListener('scroll', updateKeyboardInset);
+    };
+  }, []);
+
+  useEffect(() => {
+    const input = commentInputRef.current;
+    if (!input) return;
+
+    input.style.height = '0px';
+    const nextHeight = Math.min(input.scrollHeight, COMMENT_INPUT_MAX_HEIGHT);
+    input.style.height = `${nextHeight}px`;
+    input.style.overflowY = input.scrollHeight > COMMENT_INPUT_MAX_HEIGHT ? 'auto' : 'hidden';
+  }, [newCommentText]);
+
   const handleRefresh = async () => {
     setRefreshing(true);
     setPullY(PULL_SNAP);
@@ -890,6 +968,38 @@ export default function ReplyDetailPage() {
       setStartX(0);
       setIsPulling(false);
     }
+  };
+
+  const scrollToCommentsBottom = () => {
+    const run = () => {
+      commentsBottomRef.current?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'end',
+      });
+    };
+
+    run();
+    setTimeout(run, 160);
+  };
+
+  const scrollToCommentAnchor = (commentId: string) => {
+    const COMMENT_TOP_OFFSET = 92;
+
+    const run = () => {
+      const target = rootCommentRefs.current[commentId];
+      if (!target) return;
+
+      const absoluteTop =
+        window.scrollY + target.getBoundingClientRect().top - COMMENT_TOP_OFFSET;
+
+      window.scrollTo({
+        top: Math.max(0, absoluteTop),
+        behavior: 'smooth',
+      });
+    };
+
+    run();
+    setTimeout(run, 140);
   };
 
   const handleEditAnswer = (answer: Answer) => {
@@ -1115,6 +1225,8 @@ export default function ReplyDetailPage() {
     }
 
     const targetAnswerId = answers[0].id;
+    const replyTargetCommentId =
+      replyingToComment?.parent?.id || replyingToComment?.id || null;
 
     try {
       const token = await getItem('accessToken');
@@ -1132,6 +1244,18 @@ export default function ReplyDetailPage() {
 
       setNewCommentText('');
       setReplyingToComment(null);
+
+      requestAnimationFrame(() => {
+        if (replyTargetCommentId) {
+          scrollToCommentAnchor(replyTargetCommentId);
+          return;
+        }
+
+        commentsTopRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start',
+        });
+      });
     } catch (e: any) {
       console.error('[댓글 생성 에러]', e);
       openModal({ content: e?.message || '댓글 작성에 실패했습니다.' });
@@ -1142,6 +1266,17 @@ export default function ReplyDetailPage() {
     setEditingComment(comment);
     setEditCommentText(comment.content);
     setShowEditCommentModal(true);
+  };
+
+  const handleStartReply = (comment: Comment) => {
+    setReplyingToComment(comment);
+
+    const parentId = comment.parent?.id || comment.id;
+    scrollToCommentAnchor(parentId);
+
+    setTimeout(() => {
+      commentInputRef.current?.focus({ preventScroll: true });
+    }, 320);
   };
 
   const handleSaveCommentEdit = async () => {
@@ -1211,14 +1346,19 @@ export default function ReplyDetailPage() {
       );
 
       return (
-        <div key={rootComment.id}>
+        <div
+          key={rootComment.id}
+          ref={(el) => {
+            rootCommentRefs.current[rootComment.id] = el;
+          }}
+        >
           <CommentCard
             comment={rootComment}
             isMyComment={isMyRootComment}
             isReply={false}
             onEdit={() => handleEditComment(rootComment)}
             onDelete={() => handleDeleteComment(rootComment)}
-            onReply={() => setReplyingToComment(rootComment)}
+            onReply={() => handleStartReply(rootComment)}
             canReport={!isMyRootComment && Boolean(rootComment.id && rootComment.member?.id)}
             canBlock={
               !isMyRootComment && Boolean(rootComment.member?.id)
@@ -1257,7 +1397,7 @@ export default function ReplyDetailPage() {
                   isReply={true}
                   onEdit={() => handleEditComment(childComment)}
                   onDelete={() => handleDeleteComment(childComment)}
-                  onReply={() => setReplyingToComment(childComment)}
+                  onReply={() => handleStartReply(childComment)}
                   canReport={
                     !isMyChildComment &&
                     Boolean(childComment.id && childComment.member?.id)
@@ -1553,7 +1693,7 @@ export default function ReplyDetailPage() {
 
       {/* Comments */}
         {!loading && !error && (
-          <div className="mt-4 mb-5">
+          <div ref={commentsTopRef} className="mt-4 mb-5">
             <div className="py-2 mb-2">
               <div className="font-sans font-bold text-gray-800 text-lg">
                 댓글{' '}
@@ -1573,6 +1713,7 @@ export default function ReplyDetailPage() {
               ) : (
                 renderComments()
               )}
+              <div ref={commentsBottomRef} className="h-px w-full" />
             </div>
           </div>
         )}
@@ -1630,9 +1771,22 @@ export default function ReplyDetailPage() {
       </div>
 
       {/* Bottom comment input */}
-      <div className="fixed bottom-0 left-0 right-0">
-        <div className="mx-auto w-full max-w-md px-5 pt-2 bg-transparent pb-[calc(env(safe-area-inset-bottom)+2rem)]">
-          <div className="bg-white rounded-2xl px-2 py-2 shadow-lg border border-orange-100">
+      <div
+        className="fixed bottom-0 left-0 right-0 z-40 border-t border-orange-100 bg-white"
+        style={{
+          transform: `translateY(-${keyboardInset}px)`,
+          transition: 'transform 220ms cubic-bezier(0.22, 1, 0.36, 1)',
+        }}
+      >
+        <div
+          className="mx-auto w-full max-w-md px-5 pt-1.5"
+          style={{
+            paddingBottom:
+              keyboardInset > 0
+                ? '0.4rem'
+                : 'calc(env(safe-area-inset-bottom) + 0.4rem)',
+          }}
+        >
             {replyingToComment && (
               <div className="flex-row items-center justify-between bg-orange-50 px-3 py-2 rounded-lg mb-2 flex">
                 <div className="font-sans text-sm text-gray-600">
@@ -1658,14 +1812,21 @@ export default function ReplyDetailPage() {
 
             <div className="flex-row items-end gap-2 flex">
               <textarea
-                className="flex-1 bg-transparent px-2 py-2 font-sans text-base text-gray-900 max-h-24 resize-none outline-none"
+                ref={commentInputRef}
+                rows={1}
+                className="flex-1 bg-transparent px-0 py-1.5 leading-6 font-sans text-base text-gray-900 max-h-24 min-h-[36px] resize-none outline-none"
                 placeholder="댓글을 입력하세요..."
                 value={newCommentText}
                 onChange={(e) => setNewCommentText(e.target.value)}
+                onFocus={() => {
+                  if (!replyingToComment) {
+                    scrollToCommentsBottom();
+                  }
+                }}
               />
               <button
                 type="button"
-                className={`w-10 h-10 rounded-full items-center justify-center mb-0.5 flex ${
+                className={`w-9 h-9 rounded-full items-center justify-center mb-0.5 flex ${
                   newCommentText.trim() ? 'bg-orange-500' : 'bg-gray-200'
                 }`}
                 disabled={!newCommentText.trim()}
@@ -1674,7 +1835,6 @@ export default function ReplyDetailPage() {
                 <ArrowUpIcon size={20} />
               </button>
             </div>
-          </div>
         </div>
       </div>
 

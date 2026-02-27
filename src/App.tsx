@@ -32,6 +32,8 @@ import ReplyDetailPage from '@/pages/reply/ReplyDetailPage';
 
 import DeepLinkBridge from '@/routes/DeepLinkBridge';
 import AppSplash from '@/components/AppSplash';
+import { Capacitor } from '@capacitor/core';
+import { Keyboard } from '@capacitor/keyboard';
 
 function SessionBridge() {
   const navigate = useNavigate();
@@ -55,6 +57,14 @@ function SessionBridge() {
 
 export default function App() {
   const [showSplash, setShowSplash] = useState(true);
+
+  useEffect(() => {
+    if (Capacitor.getPlatform() !== 'ios') return;
+
+    Keyboard.setAccessoryBarVisible({ isVisible: false }).catch((error) => {
+      console.warn('[Keyboard] accessory bar 설정 실패', error);
+    });
+  }, []);
 
   return (
     <BrowserRouter>
