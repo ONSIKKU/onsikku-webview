@@ -22,7 +22,7 @@ import NotAssignedPage from '@/pages/NotAssignedPage';
 import MyPage from '@/pages/tabs/MyPage';
 import RequireAuth from '@/routes/RequireAuth';
 import { setOnSessionExpired } from '@/utils/api';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 import GlobalModal from '@/components/GlobalModal';
 import { useModalStore } from '@/features/modal/modalStore';
@@ -31,6 +31,7 @@ import ReplyPage from '@/pages/reply/ReplyPage';
 import ReplyDetailPage from '@/pages/reply/ReplyDetailPage';
 
 import DeepLinkBridge from '@/routes/DeepLinkBridge';
+import AppSplash from '@/components/AppSplash';
 
 function SessionBridge() {
   const navigate = useNavigate();
@@ -53,9 +54,13 @@ function SessionBridge() {
 }
 
 export default function App() {
+  const [showSplash, setShowSplash] = useState(true);
+
   return (
     <BrowserRouter>
       <GlobalModal />
+
+      {showSplash && <AppSplash onDone={() => setShowSplash(false)} />}
 
       <DeepLinkBridge />
       <SessionBridge />
