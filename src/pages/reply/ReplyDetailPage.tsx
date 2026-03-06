@@ -795,7 +795,9 @@ export default function ReplyDetailPage() {
     null,
   );
   const commentInputRef = useRef<HTMLTextAreaElement | null>(null);
+  const commentInputBarRef = useRef<HTMLDivElement | null>(null);
   const rootCommentRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const commentRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const commentsTopRef = useRef<HTMLDivElement | null>(null);
   const commentsBottomRef = useRef<HTMLDivElement | null>(null);
   const [keyboardInset, setKeyboardInset] = useState(0);
@@ -971,15 +973,32 @@ export default function ReplyDetailPage() {
   };
 
   const scrollToCommentsBottom = () => {
-    const run = () => {
+    requestAnimationFrame(() => {
       commentsBottomRef.current?.scrollIntoView({
         behavior: 'smooth',
         block: 'end',
       });
-    };
+    });
+  };
 
-    run();
-    setTimeout(run, 160);
+  const scrollToCommentById = (commentId: string) => {
+    const target = commentRefs.current[commentId];
+    if (!target) {
+      scrollToCommentsBottom();
+      return;
+    }
+
+    const inputBarHeight =
+      commentInputBarRef.current?.getBoundingClientRect().height ?? 0;
+    const rect = target.getBoundingClientRect();
+
+    const targetTop =
+      window.scrollY + rect.bottom - (window.innerHeight - inputBarHeight - 12);
+
+    window.scrollTo({
+      top: Math.max(0, targetTop),
+      behavior: 'smooth',
+    });
   };
 
   const scrollToCommentAnchor = (commentId: string) => {
@@ -1225,10 +1244,10 @@ export default function ReplyDetailPage() {
     }
 
     const targetAnswerId = answers[0].id;
-    const replyTargetCommentId =
-      replyingToComment?.parent?.id || replyingToComment?.id || null;
 
     try {
+      const previousCommentIds = new Set(comments.map((comment) => comment.id));
+
       const token = await getItem('accessToken');
       if (token) setAccessToken(token);
 
@@ -1242,19 +1261,23 @@ export default function ReplyDetailPage() {
       const commentList = questionData.questionDetails?.comments || [];
       setComments(commentList as Comment[]);
 
+      const newlyCreatedComment = (commentList as Comment[])
+        .filter((comment) => !previousCommentIds.has(comment.id))
+        .sort((a, b) => {
+          const aTime = new Date(a.createdAt).getTime();
+          const bTime = new Date(b.createdAt).getTime();
+          return bTime - aTime;
+        })[0];
+
       setNewCommentText('');
       setReplyingToComment(null);
 
       requestAnimationFrame(() => {
-        if (replyTargetCommentId) {
-          scrollToCommentAnchor(replyTargetCommentId);
+        if (newlyCreatedComment?.id) {
+          scrollToCommentById(newlyCreatedComment.id);
           return;
         }
-
-        commentsTopRef.current?.scrollIntoView({
-          behavior: 'smooth',
-          block: 'start',
-        });
+        scrollToCommentsBottom();
       });
     } catch (e: any) {
       console.error('[댓글 생성 에러]', e);
@@ -1336,20 +1359,35 @@ export default function ReplyDetailPage() {
   };
 
   const renderComments = () => {
-    const rootComments = comments.filter((c) => !c.parent);
+    const getCreatedAtMs = (value?: string) => {
+      if (!value) return 0;
+      const parsed = new Date(value).getTime();
+      return Number.isNaN(parsed) ? 0 : parsed;
+    };
+
+    const sortByOldest = (a: Comment, b: Comment) => {
+      const diff = getCreatedAtMs(a.createdAt) - getCreatedAtMs(b.createdAt);
+      if (diff !== 0) return diff;
+      return a.id.localeCompare(b.id);
+    };
+
+    const rootComments = comments
+      .filter((c) => !c.parent)
+      .sort(sortByOldest);
 
     return rootComments.map((rootComment) => {
       const isMyRootComment = currentUserId === rootComment.member?.id;
 
-      const childComments = comments.filter(
-        (c) => c.parent?.id === rootComment.id,
-      );
+      const childComments = comments
+        .filter((c) => c.parent?.id === rootComment.id)
+        .sort(sortByOldest);
 
       return (
         <div
           key={rootComment.id}
           ref={(el) => {
             rootCommentRefs.current[rootComment.id] = el;
+            commentRefs.current[rootComment.id] = el;
           }}
         >
           <CommentCard
@@ -1390,44 +1428,50 @@ export default function ReplyDetailPage() {
           {childComments.map((childComment) => {
             const isMyChildComment = currentUserId === childComment.member?.id;
               return (
-                <CommentCard
+                <div
                   key={childComment.id}
-                  comment={childComment}
-                  isMyComment={isMyChildComment}
-                  isReply={true}
-                  onEdit={() => handleEditComment(childComment)}
-                  onDelete={() => handleDeleteComment(childComment)}
-                  onReply={() => handleStartReply(childComment)}
-                  canReport={
-                    !isMyChildComment &&
-                    Boolean(childComment.id && childComment.member?.id)
-                  }
-                  canBlock={
-                    !isMyChildComment && Boolean(childComment.member?.id)
-                  }
-                  onReport={() => {
-                    if (!childComment.id || !childComment.member?.id) return;
-                    handleOpenReport({
-                      id: childComment.id,
-                      type: 'COMMENT',
-                      name: getDisplayName(
-                        childComment.member?.familyRole,
-                        childComment.member?.gender,
-                      ),
-                    });
+                  ref={(el) => {
+                    commentRefs.current[childComment.id] = el;
                   }}
-                  onBlock={() => {
-                    if (!childComment.member?.id) return;
-                    handleToggleBlock(
-                      childComment.member.id,
-                      getDisplayName(
-                        childComment.member?.familyRole,
-                        childComment.member?.gender,
-                      ),
-                    );
-                  }}
-                  blockLabel={getBlockedLabel(childComment.member?.id)}
-                />
+                >
+                  <CommentCard
+                    comment={childComment}
+                    isMyComment={isMyChildComment}
+                    isReply={true}
+                    onEdit={() => handleEditComment(childComment)}
+                    onDelete={() => handleDeleteComment(childComment)}
+                    onReply={() => handleStartReply(childComment)}
+                    canReport={
+                      !isMyChildComment &&
+                      Boolean(childComment.id && childComment.member?.id)
+                    }
+                    canBlock={
+                      !isMyChildComment && Boolean(childComment.member?.id)
+                    }
+                    onReport={() => {
+                      if (!childComment.id || !childComment.member?.id) return;
+                      handleOpenReport({
+                        id: childComment.id,
+                        type: 'COMMENT',
+                        name: getDisplayName(
+                          childComment.member?.familyRole,
+                          childComment.member?.gender,
+                        ),
+                      });
+                    }}
+                    onBlock={() => {
+                      if (!childComment.member?.id) return;
+                      handleToggleBlock(
+                        childComment.member.id,
+                        getDisplayName(
+                          childComment.member?.familyRole,
+                          childComment.member?.gender,
+                        ),
+                      );
+                    }}
+                    blockLabel={getBlockedLabel(childComment.member?.id)}
+                  />
+                </div>
               );
             })}
         </div>
@@ -1772,6 +1816,7 @@ export default function ReplyDetailPage() {
 
       {/* Bottom comment input */}
       <div
+        ref={commentInputBarRef}
         className="fixed bottom-0 left-0 right-0 z-40 border-t border-orange-100 bg-white"
         style={{
           transform: `translateY(-${keyboardInset}px)`,
