@@ -71,6 +71,7 @@ export default function MyPageEdit() {
   const onSave = async () => {
     try {
       setSaving(true);
+      const trimmedNickname = nickname.trim();
 
       if (!birthDate) {
         openModal({ content: '생년월일을 선택해 주세요' });
@@ -80,6 +81,12 @@ export default function MyPageEdit() {
 
       if (!gender || !roleCategory) {
         openModal({ content: '성별과 역할을 선택해 주세요' });
+        setSaving(false);
+        return;
+      }
+
+      if (!trimmedNickname) {
+        openModal({ content: '닉네임을 입력해 주세요' });
         setSaving(false);
         return;
       }
@@ -102,7 +109,7 @@ export default function MyPageEdit() {
       await patchMyPage({
         birthDate: birthDate,
         familyRole: apiRole,
-        nickname: nickname || undefined,
+        nickname: trimmedNickname,
         isFamilyInviteEnabled,
       });
       await setItem('alarmEnabled', String(isAlarmEnabled));

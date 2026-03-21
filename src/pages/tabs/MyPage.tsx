@@ -444,23 +444,23 @@ export default function MyPage() {
             <button
               type="button"
               onClick={() => setConsentModalOpen(true)}
-              className="flex w-full items-center justify-between rounded-2xl bg-orange-50 px-4 py-4 text-left active:scale-[0.99] transition-transform"
+              className="flex w-full items-center justify-between rounded-2xl border border-gray-100 bg-white px-4 py-3.5 text-left active:scale-[0.99] transition-transform"
             >
               <div className="flex items-center gap-3">
-                <div className="rounded-full bg-white p-2 shadow-sm">
-                  <IoShieldHalfOutline size={18} color="#FB923C" />
+                <div className="rounded-full bg-gray-50 p-2">
+                  <IoShieldHalfOutline size={18} color="#9CA3AF" />
                 </div>
                 <div>
-                  <div className="text-base font-semibold text-gray-900">
+                  <div className="text-sm font-semibold text-gray-900">
                     개인정보 및 동의 관리
                   </div>
-                  <div className="mt-1 text-sm text-gray-500">
-                    이용약관, 개인정보처리방침, AI 정보 활용 동의를 확인하세요.
+                  <div className="mt-0.5 text-xs text-gray-500">
+                    이용약관, 개인정보처리방침, AI 정보 활용 동의 확인
                   </div>
                 </div>
               </div>
-              <span className="text-sm font-semibold text-onsikku-dark-orange">
-                보기
+              <span className="text-sm font-medium text-gray-400">
+                열기
               </span>
             </button>
           </div>
