@@ -78,14 +78,14 @@ export default function FamilyCodePage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-white">
+    <div className="flex min-h-screen flex-col bg-white pt-safe">
       {/* Scrollable Content */}
-      <div className="flex-1 overflow-y-auto px-5 pb-32 pt-2 scrollbar-hide">
+      <div className="flex-1 overflow-y-auto px-5 pb-40 pt-2 scrollbar-hide">
         <SignUpHeader
           title="가족에 합류할 시간이에요"
           description="새로운 가족 공간을 만들거나, 초대 코드로 기존 가족에 참여하세요."
-          currentStep={4}
-          totalSteps={4}
+          currentStep={5}
+          totalSteps={5}
           showBackButton
         />
 
@@ -145,7 +145,7 @@ export default function FamilyCodePage() {
       </div>
 
       {/* Fixed Bottom Button */}
-      <div className="fixed bottom-0 left-0 right-0 z-10 bg-gradient-to-t from-white via-white to-transparent pb-8 pt-4">
+      <div className="fixed bottom-0 left-0 right-0 z-10 bg-gradient-to-t from-white via-white to-transparent pb-safe pb-8 pt-4">
         <div className="mx-auto max-w-md px-5">
           <Button 
             className="w-full py-4 text-lg shadow-xl shadow-orange-100/50" 

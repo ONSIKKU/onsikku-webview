@@ -18,7 +18,7 @@ export default function ImagePage() {
   }, [role]);
 
   return (
-    <div className="flex min-h-screen flex-col bg-white px-5 pb-6">
+    <div className="flex min-h-screen flex-col bg-white px-5 pb-safe pb-6 pt-safe">
       <SignUpHeader
         title={title}
         description="사진을 등록하면 가족들이 나를 더 쉽게 알아볼 수 있어요."

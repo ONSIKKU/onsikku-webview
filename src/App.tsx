@@ -9,6 +9,7 @@ import LandingPage from '@/pages/LandingPage';
 import KakaoLoginStart from '@/pages/auth/KakaoLoginStart';
 import AppleLoginStart from '@/pages/auth/AppleLoginStart';
 import AgreePage from '@/pages/signup/AgreePage';
+import AiConsentPage from '@/pages/signup/AiConsentPage';
 import RolePage from '@/pages/signup/RolePage';
 import BirthGenderPage from '@/pages/signup/BirthGenderPage';
 import ImagePage from '@/pages/signup/ImagePage';
@@ -81,6 +82,7 @@ export default function App() {
         <Route path="/auth/apple" element={<AppleLoginStart />} />
 
         <Route path="/signup/agree" element={<AgreePage />} />
+        <Route path="/signup/ai-consent" element={<AiConsentPage />} />
         <Route path="/signup/role" element={<RolePage />} />
         <Route path="/signup/birth" element={<BirthGenderPage />} />
         <Route path="/signup/image" element={<ImagePage />} />

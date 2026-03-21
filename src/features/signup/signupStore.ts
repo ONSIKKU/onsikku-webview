@@ -5,6 +5,7 @@ export type SignupAgreementKey =
   | "age14"
   | "terms"
   | "privacy"
+  | "aiDataUsage"
   | "overseas"
   | "marketing";
 
@@ -42,6 +43,7 @@ export const useSignupStore = create<SignupState>((set) => ({
     age14: false,
     terms: false,
     privacy: false,
+    aiDataUsage: false,
     overseas: false,
     marketing: false,
   },
@@ -63,6 +65,7 @@ export const useSignupStore = create<SignupState>((set) => ({
         age14: value,
         terms: value,
         privacy: value,
+        aiDataUsage: value,
         overseas: value,
         marketing: value,
       },
@@ -86,6 +89,7 @@ export const useSignupStore = create<SignupState>((set) => ({
         age14: false,
         terms: false,
         privacy: false,
+        aiDataUsage: false,
         overseas: false,
         marketing: false,
       },

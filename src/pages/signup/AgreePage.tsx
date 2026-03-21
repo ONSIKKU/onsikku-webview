@@ -1,53 +1,54 @@
-import { Browser } from '@capacitor/browser';
-import { ChevronRight } from 'lucide-react';
-import { useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
-import Button from '@/components/Button';
-import SignUpHeader from '@/components/SignUpHeader';
-import type { SignupAgreementKey } from '@/features/signup/signupStore';
-import { useSignupStore } from '@/features/signup/signupStore';
+import { Browser } from "@capacitor/browser";
+import { ChevronRight } from "lucide-react";
+import { useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import Button from "@/components/Button";
+import SignUpHeader from "@/components/SignUpHeader";
+import type { SignupAgreementKey } from "@/features/signup/signupStore";
+import { useSignupStore } from "@/features/signup/signupStore";
 
 const TERMS_URL =
-  'https://vast-watchmaker-4b0.notion.site/302e26932b5480b88783f333370ee19d';
+  (import.meta.env.VITE_TERMS_URL as string | undefined) ??
+  "https://vast-watchmaker-4b0.notion.site/302e26932b5480b88783f333370ee19d";
 
-const REQUIRED_KEYS: SignupAgreementKey[] = [
-  'age14',
-  'terms',
-  'privacy',
-];
+const PRIVACY_URL =
+  (import.meta.env.VITE_PRIVACY_URL as string | undefined) ??
+  "https://vast-watchmaker-4b0.notion.site/32ae26932b5480009d22f86f86ea74fc";
+
+const REQUIRED_KEYS: SignupAgreementKey[] = ["age14", "terms", "privacy"];
 
 const ITEMS: Array<{
   key: SignupAgreementKey;
   label: string;
   required: boolean;
   reason: string;
-  hasLink?: boolean;
+  linkUrl?: string;
 }> = [
   {
-    key: 'age14',
-    label: '만 14세 이상입니다.',
+    key: "age14",
+    label: "만 14세 이상입니다.",
     required: true,
-    reason: '서비스 이용 연령 요건',
+    reason: "서비스 이용 연령 요건",
   },
   {
-    key: 'terms',
-    label: '서비스 이용약관 동의',
+    key: "terms",
+    label: "서비스 이용약관 동의",
     required: true,
-    reason: '운영자와 이용자 간의 계약',
-    hasLink: true,
+    reason: "운영자와 이용자 간의 계약",
+    linkUrl: TERMS_URL,
   },
   {
-    key: 'privacy',
-    label: '개인정보 수집 및 이용 동의',
+    key: "privacy",
+    label: "개인정보 수집 및 이용 동의",
     required: true,
-    reason: '회원가입 및 서비스 제공을 위한 정보 처리',
-    hasLink: true,
+    reason: "회원가입 및 서비스 제공을 위한 정보 처리",
+    linkUrl: PRIVACY_URL,
   },
   {
-    key: 'marketing',
-    label: '마케팅 알림(푸시) 수신 동의',
+    key: "marketing",
+    label: "마케팅 알림(푸시) 수신 동의",
     required: false,
-    reason: '광고 및 이벤트 알림 전송용',
+    reason: "광고 및 이벤트 알림 전송용",
   },
 ];
 
@@ -65,18 +66,18 @@ export default function AgreePage() {
     [agreements],
   );
 
-  const openTerms = async () => {
-    await Browser.open({ url: TERMS_URL, presentationStyle: 'fullscreen' });
+  const openDocument = async (url: string) => {
+    await Browser.open({ url, presentationStyle: "fullscreen" });
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-white">
-      <div className="flex-1 overflow-y-auto px-5 pb-32 pt-2 scrollbar-hide">
+    <div className="flex min-h-screen flex-col bg-white pt-safe">
+      <div className="flex-1 overflow-y-auto px-5 pb-40 pt-2 scrollbar-hide">
         <SignUpHeader
           title="회원가입 동의"
           description="가입 전 필수 약관 동의가 필요해요."
           currentStep={1}
-          totalSteps={4}
+          totalSteps={5}
         />
 
         <div className="mt-8 space-y-4">
@@ -114,19 +115,19 @@ export default function AgreePage() {
                     />
                     <div className="space-y-1">
                       <div className="text-sm font-bold text-gray-900">
-                        {item.label}{' '}
+                        {item.label}{" "}
                         <span className="text-xs font-medium text-gray-500">
-                          {item.required ? '(필수)' : '(선택)'}
+                          {item.required ? "(필수)" : "(선택)"}
                         </span>
                       </div>
                       <p className="text-xs text-gray-500">{item.reason}</p>
                     </div>
                   </label>
 
-                  {item.hasLink && (
+                  {item.linkUrl && (
                     <button
                       type="button"
-                      onClick={openTerms}
+                      onClick={() => openDocument(item.linkUrl!)}
                       className="mt-0.5 inline-flex items-center text-xs font-semibold text-gray-500"
                     >
                       보기
@@ -140,12 +141,12 @@ export default function AgreePage() {
         </div>
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 z-10 bg-gradient-to-t from-white via-white to-transparent pb-8 pt-4">
+      <div className="fixed bottom-0 left-0 right-0 z-10 bg-gradient-to-t from-white via-white to-transparent pb-safe pb-8 pt-4">
         <div className="mx-auto max-w-md px-5">
           <Button
             className="w-full py-4 text-lg shadow-xl shadow-orange-100/50"
             disabled={!isRequiredDone}
-            onClick={() => navigate('/signup/role')}
+            onClick={() => navigate("/signup/ai-consent")}
           >
             다음으로
           </Button>

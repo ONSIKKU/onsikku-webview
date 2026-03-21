@@ -73,14 +73,14 @@ export default function BirthGenderPage() {
   }, [daysInMonth, tempDay]);
 
   return (
-    <div className="flex min-h-screen flex-col bg-white">
+    <div className="flex min-h-screen flex-col bg-white pt-safe">
       {/* Scrollable Content */}
-      <div className="flex-1 overflow-y-auto px-5 pb-32 pt-2 scrollbar-hide">
+      <div className="flex-1 overflow-y-auto px-5 pb-40 pt-2 scrollbar-hide">
         <SignUpHeader
           title="기본 정보를 입력해주세요"
           description="사용할 닉네임과 생년월일, 성별을 알려주세요."
-          currentStep={3}
-          totalSteps={4}
+          currentStep={4}
+          totalSteps={5}
           showBackButton
         />
 
@@ -126,7 +126,7 @@ export default function BirthGenderPage() {
       </div>
 
       {/* Fixed Bottom Button */}
-      <div className="fixed bottom-0 left-0 right-0 z-10 bg-gradient-to-t from-white via-white to-transparent pb-8 pt-4">
+      <div className="fixed bottom-0 left-0 right-0 z-10 bg-gradient-to-t from-white via-white to-transparent pb-safe pb-8 pt-4">
         <div className="mx-auto max-w-md px-5">
           <Button
             className="w-full py-4 text-lg shadow-xl shadow-orange-100/50"
@@ -141,7 +141,7 @@ export default function BirthGenderPage() {
       {/* Custom Bottom Sheet Date Picker */}
       {showDatePicker && (
         <div className="fixed inset-0 bg-black/50 flex items-end z-[60] animate-fade-in">
-          <div className="bg-white rounded-t-[30px] p-6 w-full animate-slide-up pb-10">
+          <div className="bg-white rounded-t-[30px] p-6 w-full animate-slide-up pb-safe pb-10">
             <div className="flex flex-row justify-between items-center mb-6 border-b border-gray-100 pb-4">
               <button
                 type="button"
