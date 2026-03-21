@@ -1,19 +1,13 @@
 import { ChevronRight } from "lucide-react";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import Button from "@/components/Button";
 import SignUpHeader from "@/components/SignUpHeader";
 import type { SignupAgreementKey } from "@/features/signup/signupStore";
 import { useSignupStore } from "@/features/signup/signupStore";
+import { saveConsentPreferences } from "@/utils/consentPreferences";
+import { PRIVACY_URL, TERMS_URL } from "@/utils/legal";
 import { openSystemBrowser } from "@/utils/systemBrowser";
-
-const TERMS_URL =
-  (import.meta.env.VITE_TERMS_URL as string | undefined) ??
-  "https://vast-watchmaker-4b0.notion.site/302e26932b5480b88783f333370ee19d";
-
-const PRIVACY_URL =
-  (import.meta.env.VITE_PRIVACY_URL as string | undefined) ??
-  "https://vast-watchmaker-4b0.notion.site/32ae26932b5480009d22f86f86ea74fc";
 
 const REQUIRED_KEYS: SignupAgreementKey[] = ["age14", "terms", "privacy"];
 
@@ -69,6 +63,14 @@ export default function AgreePage() {
   const openDocument = async (url: string) => {
     await openSystemBrowser(url);
   };
+
+  useEffect(() => {
+    saveConsentPreferences({
+      terms: agreements.terms,
+      privacy: agreements.privacy,
+      marketing: agreements.marketing,
+    });
+  }, [agreements.marketing, agreements.privacy, agreements.terms]);
 
   return (
     <div className="flex min-h-screen flex-col bg-white pt-safe">

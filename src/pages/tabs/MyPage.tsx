@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import ConsentManagementModal from '@/components/mypage/ConsentManagementModal';
 import LogoutButton from '@/components/mypage/LogoutButton';
 import { useSignupStore } from '@/features/signup/signupStore';
 import type { MypageResponse } from '@/utils/api';
@@ -25,6 +26,7 @@ import {
   IoKeyOutline,
   IoCopyOutline,
   IoRefresh,
+  IoShieldHalfOutline,
 } from 'react-icons/io5';
 import RoleIcon from '@/components/RoleIcon';
 import { useModalStore } from '@/features/modal/modalStore';
@@ -40,6 +42,7 @@ export default function MyPage() {
   const [deleting, setDeleting] = useState<boolean>(false);
   const [blockedMembers, setBlockedMembers] = useState<BlockedMember[]>([]);
   const [loadingBlocks, setLoadingBlocks] = useState<boolean>(false);
+  const [consentModalOpen, setConsentModalOpen] = useState(false);
 
   const fetchMyPage = useCallback(async () => {
     try {
@@ -181,7 +184,8 @@ export default function MyPage() {
     openModal({
       type: 'confirm',
       title: '회원 탈퇴',
-      content: '정말 탈퇴하시겠습니까?\n모든 데이터가 삭제되며 복구할 수 없습니다.',
+      content:
+        '정말 탈퇴하시겠습니까?\n모든 데이터가 삭제되며 복구할 수 없습니다.\n탈퇴 시 소셜 로그인 연동도 함께 해제됩니다.',
       confirmText: '탈퇴하기',
       cancelText: '유지하기',
       onConfirm: async () => {
@@ -434,6 +438,33 @@ export default function MyPage() {
             </div>
           </div>
 
+          <div className="bg-white w-full p-6 rounded-3xl shadow-sm">
+            <div className="text-lg font-bold text-gray-900 mb-4">동의 및 약관</div>
+
+            <button
+              type="button"
+              onClick={() => setConsentModalOpen(true)}
+              className="flex w-full items-center justify-between rounded-2xl bg-orange-50 px-4 py-4 text-left active:scale-[0.99] transition-transform"
+            >
+              <div className="flex items-center gap-3">
+                <div className="rounded-full bg-white p-2 shadow-sm">
+                  <IoShieldHalfOutline size={18} color="#FB923C" />
+                </div>
+                <div>
+                  <div className="text-base font-semibold text-gray-900">
+                    개인정보 및 동의 관리
+                  </div>
+                  <div className="mt-1 text-sm text-gray-500">
+                    이용약관, 개인정보처리방침, AI 정보 활용 동의를 확인하세요.
+                  </div>
+                </div>
+              </div>
+              <span className="text-sm font-semibold text-onsikku-dark-orange">
+                보기
+              </span>
+            </button>
+          </div>
+
           {/* 차단한 사용자 */}
           <div className="bg-white w-full p-6 rounded-3xl shadow-sm">
             <div className="text-lg font-bold text-gray-900 mb-4">차단한 사용자</div>
@@ -480,6 +511,10 @@ export default function MyPage() {
           </div>
         </div>
       </div>
+      <ConsentManagementModal
+        isOpen={consentModalOpen}
+        onClose={() => setConsentModalOpen(false)}
+      />
     </div>
   );
 }

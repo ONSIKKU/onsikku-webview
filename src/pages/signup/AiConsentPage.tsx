@@ -1,9 +1,11 @@
 import { ChevronRight } from 'lucide-react';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '@/components/Button';
 import SignUpHeader from '@/components/SignUpHeader';
 import { useSignupStore } from '@/features/signup/signupStore';
+import { saveConsentPreferences } from '@/utils/consentPreferences';
+import { AI_VENDOR_NAME } from '@/utils/legal';
 
 const DATA_ITEMS = [
   '가족 내 역할',
@@ -27,6 +29,12 @@ export default function AiConsentPage() {
 
   const canNext = useMemo(() => agreements.aiDataUsage, [agreements.aiDataUsage]);
 
+  useEffect(() => {
+    saveConsentPreferences({
+      aiDataUsage: agreements.aiDataUsage,
+    });
+  }, [agreements.aiDataUsage]);
+
   return (
     <div className="flex min-h-screen flex-col bg-white pt-safe">
       <div className="flex-1 overflow-y-auto px-5 pb-40 pt-2 scrollbar-hide">
@@ -46,7 +54,7 @@ export default function AiConsentPage() {
               제공받는 자
             </div>
             <p className="mt-2 text-sm leading-6 text-gray-700">
-              OpenAI 등 회사가 사용하는 제3자 AI 서비스 사업자
+              {AI_VENDOR_NAME}
             </p>
           </section>
 
