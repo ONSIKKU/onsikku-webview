@@ -1,10 +1,10 @@
 import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { App } from '@capacitor/app';
-import { Browser } from '@capacitor/browser';
 import { Capacitor } from '@capacitor/core';
 import { setItem } from '@/utils/AsyncStorage';
 import { setAccessToken } from '@/utils/api';
+import { closeSystemBrowser } from '@/utils/systemBrowser';
 
 const API_BASE =
   (import.meta.env.VITE_API_BASE as string | undefined) ||
@@ -71,9 +71,7 @@ export default function DeepLinkBridge() {
 
       try {
         // 로그인 브라우저 닫기 (실패해도 진행)
-        try {
-          await Browser.close();
-        } catch {}
+        await closeSystemBrowser();
 
         const res = await fetch(
           `${API_BASE}/api/auth/exchange?ticket=${encodeURIComponent(ticket)}`,

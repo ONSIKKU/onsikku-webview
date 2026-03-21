@@ -1,4 +1,3 @@
-import { Browser } from "@capacitor/browser";
 import { ChevronRight } from "lucide-react";
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
@@ -6,6 +5,7 @@ import Button from "@/components/Button";
 import SignUpHeader from "@/components/SignUpHeader";
 import type { SignupAgreementKey } from "@/features/signup/signupStore";
 import { useSignupStore } from "@/features/signup/signupStore";
+import { openSystemBrowser } from "@/utils/systemBrowser";
 
 const TERMS_URL =
   (import.meta.env.VITE_TERMS_URL as string | undefined) ??
@@ -67,7 +67,7 @@ export default function AgreePage() {
   );
 
   const openDocument = async (url: string) => {
-    await Browser.open({ url, presentationStyle: "fullscreen" });
+    await openSystemBrowser(url);
   };
 
   return (

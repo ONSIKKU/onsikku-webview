@@ -1,10 +1,13 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import { App } from '@capacitor/app';
-import { Browser } from '@capacitor/browser';
+import { InAppBrowser } from '@capacitor/inappbrowser';
+import { IoLogoApple } from 'react-icons/io5';
+import AuthRedirectStatusCard from '@/components/AuthRedirectStatusCard';
 import { setItem } from '@/utils/AsyncStorage';
 import { setAccessToken } from '@/utils/api';
+import { openSystemBrowser } from '@/utils/systemBrowser';
 
 const API_BASE =
   (import.meta.env.VITE_API_BASE as string | undefined) || 'https://api.onsikku.xyz';
@@ -33,14 +36,37 @@ function parseJsonSafe(text: string) {
   }
 }
 
+function isAppleAuthCancelled(message: string, code?: unknown) {
+  const normalizedMessage = message.trim();
+  const normalizedCode = String(code ?? '').trim();
+
+  return (
+    normalizedCode === '1001' ||
+    /AuthorizationError error 1001/i.test(normalizedMessage) ||
+    /com\.apple\.AuthenticationServices/i.test(normalizedMessage)
+  );
+}
+
+function mapAppleAuthError(message: string, code?: unknown) {
+  if (isAppleAuthCancelled(message, code)) {
+    return '애플 로그인 창이 닫혀 로그인이 취소되었어요.';
+  }
+  return message.trim();
+}
+
 function getErrorMessage(err: unknown, fallback: string) {
   if (!err) return fallback;
-  if (err instanceof Error && err.message) return err.message;
-  if (typeof err === 'string' && err.trim()) return err;
+  if (err instanceof Error && err.message) {
+    const maybeCode = (err as Error & { code?: unknown }).code;
+    return mapAppleAuthError(err.message, maybeCode);
+  }
+  if (typeof err === 'string' && err.trim()) {
+    return mapAppleAuthError(err);
+  }
 
   const maybeObj = err as { message?: unknown; code?: unknown };
   if (typeof maybeObj?.message === 'string' && maybeObj.message.trim()) {
-    return maybeObj.message;
+    return mapAppleAuthError(maybeObj.message, maybeObj.code);
   }
   if (maybeObj?.code != null) {
     return `${fallback} (code=${String(maybeObj.code)})`;
@@ -167,8 +193,12 @@ async function exchangeTicket(ticket: string) {
 
 export default function AppleLoginStart() {
   const navigate = useNavigate();
+  const [isCancelled, setIsCancelled] = useState(false);
 
   useEffect(() => {
+    let isMounted = true;
+    let browserClosedHandle: { remove: () => Promise<void> } | null = null;
+
     (async () => {
       // ✅ iOS 네이티브에서만 지원
       if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== 'ios') {
@@ -176,6 +206,13 @@ export default function AppleLoginStart() {
         navigate('/', { replace: true });
         return;
       }
+
+      browserClosedHandle = await InAppBrowser.addListener(
+        'browserClosed',
+        () => {
+          if (isMounted) setIsCancelled(true);
+        },
+      );
 
       let identityToken = '';
       let authorizationCode = '';
@@ -241,14 +278,24 @@ export default function AppleLoginStart() {
           });
         }
 
+        const nativeErrorMessage =
+          typeof (e as any)?.message === 'string' ? (e as any).message : '';
+        const nativeErrorCode = (e as any)?.code;
+
+        if (isAppleAuthCancelled(nativeErrorMessage, nativeErrorCode)) {
+          if (isMounted) setIsCancelled(true);
+          return;
+        }
+
         // fallback: 네이티브 authorize 단계에서만 실행
         if (APPLE_LOGIN_URL) {
           try {
-            await Browser.open({ url: APPLE_LOGIN_URL, presentationStyle: 'fullscreen' });
+            if (isMounted) setIsCancelled(false);
+            await openSystemBrowser(APPLE_LOGIN_URL);
             // ✅ 성공 시, DeepLinkBridge가 onsikku://auth?ticket=... 를 받아서 처리합니다.
             return;
           } catch (openErr) {
-            console.error('[AppleLogin] fallback Browser.open failed:', openErr);
+            console.error('[AppleLogin] fallback system browser open failed:', openErr);
           }
         }
 
@@ -314,11 +361,25 @@ export default function AppleLoginStart() {
         navigate('/', { replace: true });
       }
     })();
+
+    return () => {
+      isMounted = false;
+      browserClosedHandle?.remove();
+    };
   }, [navigate]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center text-sm text-gray-600">
-      애플 로그인 진행중...
-    </div>
+    <AuthRedirectStatusCard
+      icon={<IoLogoApple size={28} className="text-gray-950" />}
+      idleTitle="애플 로그인 진행 중"
+      idleDescription={'안전하게 로그인할 수 있도록\n애플 인증 화면으로 연결하고 있어요.'}
+      cancelledTitle="애플 로그인이 취소되었어요"
+      cancelledDescription={
+        '로그인 창을 닫아 이전 단계로 돌아왔어요.\n다시 시도하거나 첫 화면으로 돌아갈 수 있어요.'
+      }
+      retryLabel="애플 로그인 다시 시도"
+      isCancelled={isCancelled}
+      onRetry={() => window.location.reload()}
+    />
   );
 }
