@@ -1,11 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
-  IoCheckmarkCircle,
-  IoChevronForward,
   IoClose,
-  IoDocumentTextOutline,
   IoMailOutline,
-  IoShieldCheckmarkOutline,
 } from 'react-icons/io5';
 import {
   getConsentPreferences,
@@ -34,7 +30,7 @@ const DEFAULT_CONSENTS: ConsentPreferences = {
 function StatusChip({ active, label }: { active: boolean; label: string }) {
   return (
     <span
-      className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+      className={`inline-flex min-w-[76px] shrink-0 justify-center whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold ${
         active ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500'
       }`}
     >
@@ -93,21 +89,15 @@ export default function ConsentManagementModal({ isOpen, onClose }: Props) {
 
         <div className="max-h-[80vh] space-y-4 overflow-y-auto px-5 py-5">
           <section className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
-            <div className="mb-4 flex items-center gap-2">
-              <IoDocumentTextOutline
-                size={18}
-                className="text-onsikku-dark-orange"
-              />
-              <h3 className="text-base font-bold text-gray-900">필수 약관</h3>
-            </div>
+            <h3 className="mb-4 text-base font-bold text-gray-900">필수 약관</h3>
 
             <div className="space-y-3">
               <button
                 type="button"
                 onClick={() => openSystemBrowser(TERMS_URL)}
-                className="flex w-full items-center justify-between rounded-2xl bg-gray-50 px-4 py-4 text-left"
+                className="flex w-full items-center gap-4 rounded-2xl bg-gray-50 px-4 py-4 text-left"
               >
-                <div>
+                <div className="min-w-0 flex-1">
                   <div className="text-sm font-semibold text-gray-900">
                     서비스 이용약관
                   </div>
@@ -115,21 +105,21 @@ export default function ConsentManagementModal({ isOpen, onClose }: Props) {
                     가입 시 필수 동의
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex shrink-0 items-center gap-3 whitespace-nowrap">
                   <StatusChip
                     active={consents.terms}
                     label={consents.terms ? '동의 완료' : '미확인'}
                   />
-                  <IoChevronForward size={18} className="text-gray-400" />
+                  <span className="text-sm font-medium text-gray-400">보기</span>
                 </div>
               </button>
 
               <button
                 type="button"
                 onClick={() => openSystemBrowser(PRIVACY_URL)}
-                className="flex w-full items-center justify-between rounded-2xl bg-gray-50 px-4 py-4 text-left"
+                className="flex w-full items-center gap-4 rounded-2xl bg-gray-50 px-4 py-4 text-left"
               >
-                <div>
+                <div className="min-w-0 flex-1">
                   <div className="text-sm font-semibold text-gray-900">
                     개인정보처리방침
                   </div>
@@ -137,30 +127,24 @@ export default function ConsentManagementModal({ isOpen, onClose }: Props) {
                     수집 항목, 이용 목적, 보관 기간 확인
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex shrink-0 items-center gap-3 whitespace-nowrap">
                   <StatusChip
                     active={consents.privacy}
                     label={consents.privacy ? '동의 완료' : '미확인'}
                   />
-                  <IoChevronForward size={18} className="text-gray-400" />
+                  <span className="text-sm font-medium text-gray-400">보기</span>
                 </div>
               </button>
             </div>
           </section>
 
           <section className="rounded-3xl border border-orange-100 bg-orange-50 p-5">
-            <div className="mb-3 flex items-center gap-2">
-              <IoShieldCheckmarkOutline
-                size={18}
-                className="text-onsikku-dark-orange"
-              />
-              <h3 className="text-base font-bold text-gray-900">
-                AI 정보 활용 동의
-              </h3>
-            </div>
+            <h3 className="mb-3 text-base font-bold text-gray-900">
+              AI 정보 활용 동의
+            </h3>
 
-            <div className="flex items-start justify-between gap-4 rounded-2xl bg-white/90 px-4 py-4">
-              <div>
+            <div className="flex items-start gap-4 rounded-2xl bg-white/90 px-4 py-4">
+              <div className="min-w-0 flex-1">
                 <div className="text-sm font-semibold text-gray-900">
                   제3자 AI 사업자
                 </div>
@@ -184,13 +168,7 @@ export default function ConsentManagementModal({ isOpen, onClose }: Props) {
           </section>
 
           <section className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
-            <div className="mb-4 flex items-center gap-2">
-              <IoCheckmarkCircle
-                size={18}
-                className="text-onsikku-dark-orange"
-              />
-              <h3 className="text-base font-bold text-gray-900">선택 동의</h3>
-            </div>
+            <h3 className="mb-4 text-base font-bold text-gray-900">선택 동의</h3>
 
             <div className="flex items-center justify-between rounded-2xl bg-gray-50 px-4 py-4">
               <div>

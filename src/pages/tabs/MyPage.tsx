@@ -26,7 +26,6 @@ import {
   IoKeyOutline,
   IoCopyOutline,
   IoRefresh,
-  IoShieldHalfOutline,
 } from 'react-icons/io5';
 import RoleIcon from '@/components/RoleIcon';
 import { useModalStore } from '@/features/modal/modalStore';
@@ -446,20 +445,15 @@ export default function MyPage() {
               onClick={() => setConsentModalOpen(true)}
               className="flex w-full items-center justify-between rounded-2xl border border-gray-100 bg-white px-4 py-3.5 text-left active:scale-[0.99] transition-transform"
             >
-              <div className="flex items-center gap-3">
-                <div className="rounded-full bg-gray-50 p-2">
-                  <IoShieldHalfOutline size={18} color="#9CA3AF" />
+              <div className="min-w-0 flex-1 pr-4">
+                <div className="text-sm font-semibold text-gray-900">
+                  개인정보 및 동의 관리
                 </div>
-                <div>
-                  <div className="text-sm font-semibold text-gray-900">
-                    개인정보 및 동의 관리
-                  </div>
-                  <div className="mt-0.5 text-xs text-gray-500">
-                    이용약관, 개인정보처리방침, AI 정보 활용 동의 확인
-                  </div>
+                <div className="mt-0.5 text-xs text-gray-500">
+                  이용약관, 개인정보처리방침, AI 정보 활용 동의 확인
                 </div>
               </div>
-              <span className="text-sm font-medium text-gray-400">
+              <span className="shrink-0 whitespace-nowrap text-sm font-medium text-gray-400">
                 열기
               </span>
             </button>
