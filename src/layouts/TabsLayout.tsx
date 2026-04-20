@@ -1,4 +1,4 @@
-import { type MouseEvent, useEffect } from 'react';
+import { type MouseEvent, useEffect, useLayoutEffect } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import {
   IoHome,
@@ -20,6 +20,23 @@ export default function TabsLayout() {
 
   // ✅ 로그인 후 탭 레이아웃이 로드되면 푸시 초기화(권한/등록/리스너)
   usePushNotifications();
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('scrollRestoration' in window.history)) {
+      return;
+    }
+
+    const prev = window.history.scrollRestoration;
+    window.history.scrollRestoration = 'manual';
+
+    return () => {
+      window.history.scrollRestoration = prev;
+    };
+  }, []);
+
+  useLayoutEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }, [location.pathname]);
 
   useEffect(() => {
     refreshUnreadCount();

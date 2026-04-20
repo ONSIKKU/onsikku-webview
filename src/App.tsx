@@ -19,6 +19,7 @@ import HomePage from '@/pages/tabs/HomePage';
 import HistoryPage from '@/pages/tabs/HistoryPage';
 import NotificationPage from '@/pages/tabs/NotificationPage';
 import MypageEdit from '@/pages/MypageEdit';
+import BlockedUsersPage from '@/pages/BlockedUsersPage';
 import NotAssignedPage from '@/pages/NotAssignedPage';
 import MyPage from '@/pages/tabs/MyPage';
 import RequireAuth from '@/routes/RequireAuth';
@@ -92,6 +93,7 @@ export default function App() {
           <Route path="/reply" element={<ReplyPage />} />
           <Route path="/reply-detail" element={<ReplyDetailPage />} />
           <Route path="/mypage-edit" element={<MypageEdit />} />
+          <Route path="/blocked-users" element={<BlockedUsersPage />} />
           <Route path="/not-assigned" element={<NotAssignedPage />} />
 
           <Route element={<TabsLayout />}>

@@ -6,9 +6,6 @@ import { useSignupStore } from '@/features/signup/signupStore';
 import type { MypageResponse } from '@/utils/api';
 import {
   deleteMember,
-  unblockUser,
-  getBlockedMembers,
-  type BlockedMember,
   getMyPage,
   logout,
   patchMyPage,
@@ -18,6 +15,7 @@ import { getItem, removeItem } from '@/utils/AsyncStorage';
 import { genderToKo, getRoleIconAndText } from '@/utils/labels';
 import {
   IoCreateOutline,
+  IoChevronForwardOutline,
   IoHomeOutline,
   IoPeopleOutline,
   IoCalendarOutline,
@@ -39,8 +37,6 @@ export default function MyPage() {
   const [loading, setLoading] = useState<boolean>(true);
   const [updating, setUpdating] = useState<boolean>(false);
   const [deleting, setDeleting] = useState<boolean>(false);
-  const [blockedMembers, setBlockedMembers] = useState<BlockedMember[]>([]);
-  const [loadingBlocks, setLoadingBlocks] = useState<boolean>(false);
   const [consentModalOpen, setConsentModalOpen] = useState(false);
 
   const fetchMyPage = useCallback(async () => {
@@ -60,22 +56,9 @@ export default function MyPage() {
     }
   }, []);
 
-  const fetchBlockedMembers = useCallback(async () => {
-    try {
-      setLoadingBlocks(true);
-      const blocked = await getBlockedMembers();
-      setBlockedMembers(blocked || []);
-    } catch (e) {
-      console.error('[차단 목록 조회 에러]', e);
-    } finally {
-      setLoadingBlocks(false);
-    }
-  }, []);
-
   useEffect(() => {
     fetchMyPage();
-    fetchBlockedMembers();
-  }, [fetchMyPage, fetchBlockedMembers]);
+  }, [fetchMyPage]);
 
   const calculateAge = (birthDateString: string | undefined): number | null => {
     if (!birthDateString) return null;
@@ -115,26 +98,6 @@ export default function MyPage() {
     });
   };
 
-  const onUnblock = async (member: BlockedMember) => {
-    openModal({
-      type: 'confirm',
-      title: '차단 해제',
-      content: `${member.nickname} 님의 차단을 해제할까요?`,
-      onConfirm: async () => {
-        try {
-          setLoadingBlocks(true);
-          await unblockUser({ blockedId: member.blockedId });
-          await fetchBlockedMembers();
-          openModal({ content: '차단이 해제되었습니다.' });
-        } catch (e: any) {
-          openModal({ content: e?.message || '차단 해제에 실패했습니다.' });
-        } finally {
-          setLoadingBlocks(false);
-        }
-      },
-    });
-  };
-
   const copyInvitationCode = async () => {
     const code = data?.family?.invitationCode;
     if (!code) {
@@ -151,6 +114,10 @@ export default function MyPage() {
 
   const onEditProfile = () => {
     navigate('/mypage-edit');
+  };
+
+  const onBlockedUsers = () => {
+    navigate('/blocked-users');
   };
 
   const onLogout = async () => {
@@ -247,7 +214,6 @@ export default function MyPage() {
   return (
     <div className="min-h-screen bg-orange-50 pb-10">
       <div className="mx-auto w-full px-5 pt-8">
-        {/* Header */}
         <div className="mb-6">
           <h1 className="font-sans text-2xl font-bold text-gray-900 ml-1">
             내 정보
@@ -255,7 +221,6 @@ export default function MyPage() {
         </div>
 
         <div className="gap-5 flex flex-col">
-          {/* 내 정보 카드 */}
           <div className="bg-white w-full p-6 rounded-3xl shadow-sm">
             <div className="flex flex-row items-center justify-between mb-5">
               <div className="text-lg font-bold text-gray-900">기본 정보</div>
@@ -342,7 +307,6 @@ export default function MyPage() {
             </div>
           </div>
 
-          {/* 함께하는 가족 */}
           <div className="bg-white w-full p-6 rounded-3xl shadow-sm">
             <div className="text-lg font-bold text-gray-900 mb-5">
               함께하는 가족
@@ -395,7 +359,6 @@ export default function MyPage() {
             </div>
           </div>
 
-          {/* 설정 카드 */}
           <div className="bg-white w-full p-6 rounded-3xl shadow-sm">
             <div className="text-lg font-bold text-gray-900 mb-4">설정</div>
 
@@ -459,35 +422,25 @@ export default function MyPage() {
             </button>
           </div>
 
-          {/* 차단한 사용자 */}
           <div className="bg-white w-full p-6 rounded-3xl shadow-sm">
-            <div className="text-lg font-bold text-gray-900 mb-4">차단한 사용자</div>
-            <div className="gap-3 flex flex-col">
-              {blockedMembers.length === 0 ? (
-                <div className="text-sm text-gray-500 text-center py-3">
-                  차단한 사용자가 없습니다.
+            <button
+              type="button"
+              onClick={onBlockedUsers}
+              className="flex w-full items-center justify-between rounded-2xl border border-gray-100 bg-white px-4 py-3.5 text-left active:scale-[0.99] transition-transform"
+            >
+              <div className="min-w-0 flex-1 pr-4">
+                <div className="text-sm font-semibold text-gray-900">
+                  차단한 사용자
                 </div>
-              ) : (
-                blockedMembers.map((member, index) => (
-                  <div
-                    key={member.blockedId}
-                    className={`flex-row items-center justify-between py-2 flex ${
-                      index !== blockedMembers.length - 1 ? 'border-b border-gray-100' : ''
-                    }`}
-                  >
-                    <span className="font-sans text-gray-700">{member.nickname}</span>
-                    <button
-                      type="button"
-                      onClick={() => onUnblock(member)}
-                      disabled={loadingBlocks}
-                      className="px-3 py-2 rounded-xl bg-gray-100 active:scale-95 transition-transform disabled:opacity-50 font-semibold text-sm text-gray-600"
-                    >
-                      차단 해제
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
+                <div className="mt-0.5 text-xs text-gray-500">
+                  차단한 사용자 목록을 보고 해제할 수 있어요.
+                </div>
+              </div>
+              <IoChevronForwardOutline
+                size={20}
+                className="shrink-0 text-gray-300"
+              />
+            </button>
           </div>
 
           <div className="flex flex-col gap-3 mt-2">

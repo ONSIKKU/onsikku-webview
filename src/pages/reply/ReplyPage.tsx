@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { getItem } from '@/utils/AsyncStorage';
-import { createAnswer, setAccessToken } from '@/utils/api';
+import {
+  createAnswer,
+  getQuestionInstanceDetails,
+  setAccessToken,
+} from '@/utils/api';
 
 const MAX_LEN = 500;
 
@@ -62,14 +66,56 @@ export default function ReplyPage() {
     [location.search],
   );
   const questionAssignmentId = query.get('questionAssignmentId') || '';
-  const question = query.get('question') || '질문 정보가 없습니다.';
+  const initialQuestion = query.get('question') || '';
 
   const [reply, setReply] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [question, setQuestion] = useState(
+    initialQuestion || '질문 정보를 불러오는 중입니다.',
+  );
 
   useEffect(() => {
     // RN과 동일하게 별도 작업 없음
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const run = async () => {
+      if (initialQuestion) {
+        setQuestion(initialQuestion);
+        return;
+      }
+
+      if (!questionAssignmentId) {
+        setQuestion('질문 정보가 없습니다.');
+        return;
+      }
+
+      try {
+        const token = await getItem('accessToken');
+        if (token) setAccessToken(token);
+
+        const response = await getQuestionInstanceDetails(questionAssignmentId);
+        const fetchedQuestion = response.questionDetails?.questionContent?.trim();
+
+        if (!cancelled) {
+          setQuestion(fetchedQuestion || '질문 정보가 없습니다.');
+        }
+      } catch (e) {
+        console.error('[질문 정보 조회 에러]', e);
+        if (!cancelled) {
+          setQuestion('질문 정보가 없습니다.');
+        }
+      }
+    };
+
+    run();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [initialQuestion, questionAssignmentId]);
 
   const canSubmit = reply.trim().length > 0 && !submitting;
 

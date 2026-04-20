@@ -73,11 +73,17 @@ export default function NotificationPage() {
         }
 
         // Extract related ID from payload or deepLink
-        let relatedId = item.payload?.memberQuestionId || item.payload?.questionInstanceId;
+        let relatedId =
+          item.payload?.questionAssignmentId ||
+          item.payload?.memberQuestionId ||
+          item.payload?.questionInstanceId;
         if (!relatedId && item.deepLink) {
            try {
              const url = new URL(item.deepLink, 'https://dummy.com');
-             relatedId = url.searchParams.get('questionInstanceId') || url.searchParams.get('questionAssignmentId') || undefined;
+             relatedId =
+               url.searchParams.get('questionAssignmentId') ||
+               url.searchParams.get('questionInstanceId') ||
+               undefined;
            } catch (e) {
              console.warn('Invalid deepLink URL', item.deepLink);
            }
