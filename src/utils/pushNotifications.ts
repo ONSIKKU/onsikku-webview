@@ -7,7 +7,7 @@ import {
   type Token,
 } from '@capacitor/push-notifications';
 import { getItem, removeItem, setItem } from '@/utils/AsyncStorage';
-import { deletePushToken, upsertPushToken } from '@/utils/api';
+import { deletePushToken, setAccessToken, upsertPushToken } from '@/utils/api';
 
 const PUSH_TOKEN_STORAGE_KEY = 'pushToken';
 const ANDROID_DEFAULT_CHANNEL_ID = 'onsikku_default';
@@ -22,7 +22,6 @@ type SyncPushTokenParams = {
 
 const syncPushToken = async ({ token, platform, fcmToken }: SyncPushTokenParams) => {
   const prev = await getItem(PUSH_TOKEN_STORAGE_KEY);
-  await setItem(PUSH_TOKEN_STORAGE_KEY, token);
 
   console.log('[Push][Sync] token candidate', {
     platform,
@@ -31,13 +30,21 @@ const syncPushToken = async ({ token, platform, fcmToken }: SyncPushTokenParams)
     tokenPreview: `${token.slice(0, 12)}...`,
   });
 
-  if (prev === token) return;
+  const accessToken = await getItem('accessToken');
+  if (accessToken) {
+    setAccessToken(accessToken);
+  } else {
+    console.warn('[Push][Sync] access token missing, skip token upload');
+    return;
+  }
 
   await upsertPushToken({
     token,
     platform,
     ...(fcmToken ? { fcmToken } : {}),
   });
+
+  await setItem(PUSH_TOKEN_STORAGE_KEY, token);
 };
 
 const getFcmTokenBestEffort = async () => {
@@ -61,6 +68,7 @@ const getFcmTokenBestEffort = async () => {
  * Push 관련 리스너를 "한 번만" 등록하기 위한 플래그
  */
 let initialized = false;
+let activeHandlers: Pick<InitPushOptions, 'onActionPerformed' | 'onReceived'> = {};
 
 export type InitPushOptions = {
   /**
@@ -78,6 +86,11 @@ export type InitPushOptions = {
    * 시스템 권한 팝업을 띄우기 전에, 한 번 더 사용자에게 확인할지 여부 (기본 true)
    */
   confirmBeforeRequest?: boolean;
+
+  /**
+   * 리스너만 초기화하고 이번 호출에서는 등록을 생략할지 여부
+   */
+  registerOnInit?: boolean;
 };
 
 /**
@@ -86,96 +99,104 @@ export type InitPushOptions = {
  */
 export async function initPushNotifications(options: InitPushOptions = {}) {
   if (!Capacitor.isNativePlatform()) return;
-  if (initialized) return;
 
-  initialized = true;
+  activeHandlers = {
+    onActionPerformed: options.onActionPerformed,
+    onReceived: options.onReceived,
+  };
 
-  if (Capacitor.getPlatform() === 'android') {
-    try {
-      await PushNotifications.createChannel({
-        id: ANDROID_DEFAULT_CHANNEL_ID,
-        name: '기본 알림',
-        description: '온식구 기본 알림 채널',
-        importance: 4,
-        visibility: 1,
-        vibration: true,
-        lights: true,
-      });
-    } catch (e) {
-      console.warn('[Push] failed to create default notification channel:', e);
+  if (!initialized) {
+    initialized = true;
+
+    if (Capacitor.getPlatform() === 'android') {
+      try {
+        await PushNotifications.createChannel({
+          id: ANDROID_DEFAULT_CHANNEL_ID,
+          name: '기본 알림',
+          description: '온식구 기본 알림 채널',
+          importance: 4,
+          visibility: 1,
+          vibration: true,
+          lights: true,
+        });
+      } catch (e) {
+        console.warn('[Push] failed to create default notification channel:', e);
+      }
     }
+
+    await FirebaseMessaging.addListener('tokenReceived', async ({ token }) => {
+      console.log('[Push] FCM token received:', token);
+
+      try {
+        await syncPushToken({
+          token,
+          platform: Capacitor.getPlatform(),
+          fcmToken: token,
+        });
+      } catch (e) {
+        console.warn('[Push] failed to sync FCM token to server:', e);
+      }
+    });
+
+    await FirebaseMessaging.addListener('notificationReceived', (event) => {
+      console.log('[Push] FCM notification received:', event);
+      activeHandlers.onReceived?.(event.notification as unknown as PushNotificationSchema);
+    });
+
+    await FirebaseMessaging.addListener('notificationActionPerformed', (event) => {
+      console.log('[Push] FCM notification action performed:', event);
+      activeHandlers.onActionPerformed?.(event as unknown as ActionPerformed);
+    });
+
+    // 1) 토큰 등록 리스너
+    await PushNotifications.addListener('registration', async (token: Token) => {
+      console.log('[Push] registration token:', token.value);
+
+      try {
+        const platform = Capacitor.getPlatform();
+        const isIOS = platform === 'ios';
+
+        let syncToken = token.value;
+        let fcmToken: string | undefined;
+
+        if (isIOS) {
+          const iosFcmToken = await getFcmTokenBestEffort();
+          if (iosFcmToken) {
+            syncToken = iosFcmToken;
+            fcmToken = iosFcmToken;
+          } else {
+            console.warn('[Push] FCM token not ready yet; fallback to APNS token sync');
+          }
+        }
+
+        await syncPushToken({ token: syncToken, platform, ...(fcmToken ? { fcmToken } : {}) });
+      } catch (e) {
+        console.warn('[Push] failed to persist token:', e);
+      }
+    });
+
+    // 2) 토큰 등록 에러 리스너
+    await PushNotifications.addListener('registrationError', (error) => {
+      console.error('[Push] registration error:', error);
+    });
+
+    // 3) 포그라운드 수신 리스너
+    await PushNotifications.addListener('pushNotificationReceived', (notification) => {
+      console.log('[Push] received:', notification);
+      activeHandlers.onReceived?.(notification);
+    });
+
+    // 4) 푸시 클릭/액션 리스너
+    await PushNotifications.addListener('pushNotificationActionPerformed', (event) => {
+      console.log('[Push] action performed:', event);
+      activeHandlers.onActionPerformed?.(event);
+    });
   }
 
-  await FirebaseMessaging.addListener('tokenReceived', async ({ token }) => {
-    console.log('[Push] FCM token received:', token);
-
-    try {
-      await syncPushToken({
-        token,
-        platform: Capacitor.getPlatform(),
-        fcmToken: token,
-      });
-    } catch (e) {
-      console.warn('[Push] failed to sync FCM token to server:', e);
-    }
-  });
-
-  await FirebaseMessaging.addListener('notificationReceived', (event) => {
-    console.log('[Push] FCM notification received:', event);
-    options.onReceived?.(event.notification as unknown as PushNotificationSchema);
-  });
-
-  await FirebaseMessaging.addListener('notificationActionPerformed', (event) => {
-    console.log('[Push] FCM notification action performed:', event);
-    options.onActionPerformed?.(event as unknown as ActionPerformed);
-  });
-
-  // 1) 토큰 등록 리스너
-  await PushNotifications.addListener('registration', async (token: Token) => {
-    console.log('[Push] registration token:', token.value);
-
-    try {
-      const platform = Capacitor.getPlatform();
-      const isIOS = platform === 'ios';
-
-      let syncToken = token.value;
-      let fcmToken: string | undefined;
-
-      if (isIOS) {
-        const iosFcmToken = await getFcmTokenBestEffort();
-        if (iosFcmToken) {
-          syncToken = iosFcmToken;
-          fcmToken = iosFcmToken;
-        } else {
-          console.warn('[Push] FCM token not ready yet; fallback to APNS token sync');
-        }
-      }
-
-      await syncPushToken({ token: syncToken, platform, ...(fcmToken ? { fcmToken } : {}) });
-    } catch (e) {
-      console.warn('[Push] failed to persist token:', e);
-    }
-  });
-
-  // 2) 토큰 등록 에러 리스너
-  await PushNotifications.addListener('registrationError', (error) => {
-    console.error('[Push] registration error:', error);
-  });
-
-  // 3) 포그라운드 수신 리스너
-  await PushNotifications.addListener('pushNotificationReceived', (notification) => {
-    console.log('[Push] received:', notification);
-    options.onReceived?.(notification);
-  });
-
-  // 4) 푸시 클릭/액션 리스너
-  await PushNotifications.addListener('pushNotificationActionPerformed', (event) => {
-    console.log('[Push] action performed:', event);
-    options.onActionPerformed?.(event);
-  });
-
   // ✅ 권한/등록 (필요 시)
-  await ensurePushPermissionAndRegister(options.confirmBeforeRequest ?? true);
+  if (options.registerOnInit ?? true) {
+    await ensurePushPermissionAndRegister(options.confirmBeforeRequest ?? true);
+  }
 }
 
 /**
@@ -237,11 +258,22 @@ export async function unregisterPushNotifications() {
     console.warn('[Push] unregister failed:', e);
   }
 
+  try {
+    await FirebaseMessaging.deleteToken();
+  } catch (e) {
+    console.warn('[Push] failed to delete FCM token:', e);
+  }
+
   // 로컬 토큰 삭제
   await removeItem(PUSH_TOKEN_STORAGE_KEY);
 
   // (선택) 서버에서도 토큰 삭제 요청
   try {
+    const accessToken = await getItem('accessToken');
+    if (accessToken) {
+      setAccessToken(accessToken);
+    }
+
     await deletePushToken(
       storedToken
         ? {
