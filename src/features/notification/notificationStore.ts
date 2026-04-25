@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { getNotifications, setAccessToken } from '@/utils/api';
+import { getUnreadNotificationCount, setAccessToken } from '@/utils/api';
 import { getItem } from '@/utils/AsyncStorage';
 
 interface NotificationStoreState {
@@ -16,8 +16,8 @@ export const useNotificationStore = create<NotificationStoreState>((set) => ({
       const token = await getItem('accessToken');
       if (token) setAccessToken(token);
 
-      const response = await getNotifications(0, 1);
-      set({ unreadCount: Math.max(0, response.unReadCount || 0) });
+      const unreadCount = await getUnreadNotificationCount();
+      set({ unreadCount: Math.max(0, unreadCount) });
     } catch (error) {
       console.error('Failed to refresh unread notification count', error);
     }

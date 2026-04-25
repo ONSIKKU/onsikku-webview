@@ -68,7 +68,10 @@ export default function ConsentManagementModal({ isOpen, onClose }: Props) {
   };
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-end justify-center bg-black/45 p-4 animate-fade-in sm:items-center">
+    <div
+      data-route-modal="true"
+      className="fixed inset-0 z-[120] flex items-end justify-center bg-black/45 p-4 animate-fade-in sm:items-center"
+    >
       <div className="w-full max-w-md overflow-hidden rounded-[28px] bg-white shadow-[0_24px_80px_rgba(15,23,42,0.22)] animate-slide-up">
         <div className="flex items-center justify-between border-b border-orange-50 px-5 pb-4 pt-5">
           <div>

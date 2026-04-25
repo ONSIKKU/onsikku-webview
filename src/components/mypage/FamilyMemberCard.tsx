@@ -1,4 +1,5 @@
 import { getRoleIconAndText } from '@/utils/labels';
+import type { FamilyRole, Member } from '@/utils/api';
 
 export default function FamilyMemberCard({
   name,
@@ -6,8 +7,8 @@ export default function FamilyMemberCard({
   gender,
 }: {
   name: string;
-  familyRole: any;
-  gender: any;
+  familyRole?: FamilyRole | null;
+  gender?: Member['gender'] | null;
 }) {
   const { icon, text } = getRoleIconAndText(familyRole, gender);
 

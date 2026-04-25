@@ -37,7 +37,7 @@ export default function AiConsentPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-white pt-safe">
-      <div className="flex-1 overflow-y-auto px-5 pb-40 pt-2 scrollbar-hide">
+      <div className="flex-1 overflow-y-auto px-5 pb-6 pt-2 scrollbar-hide">
         <SignUpHeader
           title="AI 정보 활용 동의"
           description={
@@ -117,7 +117,7 @@ export default function AiConsentPage() {
         </div>
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 z-10 bg-gradient-to-t from-white via-white to-transparent pb-safe pb-8 pt-4">
+      <div className="shrink-0 bg-white pb-safe pb-8 pt-4">
         <div className="mx-auto max-w-md px-5">
           <Button
             className="w-full py-4 text-lg shadow-xl shadow-orange-100/50"

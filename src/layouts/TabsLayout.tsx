@@ -86,7 +86,7 @@ export default function TabsLayout() {
   return (
     <div className="min-h-screen bg-orange-50 pt-safe">
       {/* Content Area */}
-      <main className="mx-auto w-full max-w-md pb-24">
+      <main className="mx-auto w-full max-w-md pb-32">
         <Outlet />
       </main>
 
@@ -103,12 +103,13 @@ export default function TabsLayout() {
                   <NavLink
                     key={tab.path}
                     to={tab.path}
+                    replace
                     onClick={(event) => handleReselectActiveTab(event, tab.path)}
                     className={({ isActive }) =>
                       `flex flex-col items-center justify-center p-2 rounded-2xl transition-all duration-200 active:scale-95 ${
                         isActive
                           ? 'text-onsikku-dark-orange'
-                          : 'text-gray-300 hover:text-gray-400'
+                          : 'text-gray-500 hover:text-gray-600'
                       }`
                     }
                   >

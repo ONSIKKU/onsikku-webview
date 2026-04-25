@@ -1,4 +1,5 @@
 import { IoChevronForwardOutline } from 'react-icons/io5';
+import type { ReactNode } from 'react';
 import RoleIcon from '../RoleIcon';
 
 export interface Question {
@@ -18,7 +19,7 @@ export interface Question {
   };
 }
 
-const Reaction = ({ icon, count }: { icon: any; count: number }) => (
+const Reaction = ({ icon, count }: { icon: ReactNode; count: number }) => (
   <div className="flex flex-row items-center mr-3">
     <span style={{ fontSize: 16 }}>{icon}</span>
     <span className="font-sans text-sm text-gray-500 ml-1">{count}</span>

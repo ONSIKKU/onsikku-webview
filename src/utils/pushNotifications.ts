@@ -14,6 +14,12 @@ const ANDROID_DEFAULT_CHANNEL_ID = 'onsikku_default';
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+const maskToken = (token: string) => {
+  if (!token) return '';
+  if (token.length <= 10) return '***';
+  return `${token.slice(0, 6)}...${token.slice(-4)}`;
+};
+
 type SyncPushTokenParams = {
   token: string;
   platform: string;
@@ -27,7 +33,7 @@ const syncPushToken = async ({ token, platform, fcmToken }: SyncPushTokenParams)
     platform,
     hasFcmToken: Boolean(fcmToken),
     changed: prev !== token,
-    tokenPreview: `${token.slice(0, 12)}...`,
+    tokenPreview: maskToken(token),
   });
 
   const accessToken = await getItem('accessToken');
@@ -125,7 +131,10 @@ export async function initPushNotifications(options: InitPushOptions = {}) {
     }
 
     await FirebaseMessaging.addListener('tokenReceived', async ({ token }) => {
-      console.log('[Push] FCM token received:', token);
+      console.log('[Push] FCM token received', {
+        hasToken: Boolean(token),
+        tokenPreview: maskToken(token),
+      });
 
       try {
         await syncPushToken({
@@ -139,18 +148,27 @@ export async function initPushNotifications(options: InitPushOptions = {}) {
     });
 
     await FirebaseMessaging.addListener('notificationReceived', (event) => {
-      console.log('[Push] FCM notification received:', event);
+      console.log('[Push] FCM notification received', {
+        id: event.notification?.id,
+        hasData: Boolean(event.notification?.data),
+      });
       activeHandlers.onReceived?.(event.notification as unknown as PushNotificationSchema);
     });
 
     await FirebaseMessaging.addListener('notificationActionPerformed', (event) => {
-      console.log('[Push] FCM notification action performed:', event);
+      console.log('[Push] FCM notification action performed', {
+        actionId: event.actionId,
+        hasData: Boolean(event.notification?.data),
+      });
       activeHandlers.onActionPerformed?.(event as unknown as ActionPerformed);
     });
 
     // 1) 토큰 등록 리스너
     await PushNotifications.addListener('registration', async (token: Token) => {
-      console.log('[Push] registration token:', token.value);
+      console.log('[Push] registration token received', {
+        hasToken: Boolean(token.value),
+        tokenPreview: maskToken(token.value),
+      });
 
       try {
         const platform = Capacitor.getPlatform();
@@ -182,13 +200,19 @@ export async function initPushNotifications(options: InitPushOptions = {}) {
 
     // 3) 포그라운드 수신 리스너
     await PushNotifications.addListener('pushNotificationReceived', (notification) => {
-      console.log('[Push] received:', notification);
+      console.log('[Push] received', {
+        id: notification.id,
+        hasData: Boolean(notification.data),
+      });
       activeHandlers.onReceived?.(notification);
     });
 
     // 4) 푸시 클릭/액션 리스너
     await PushNotifications.addListener('pushNotificationActionPerformed', (event) => {
-      console.log('[Push] action performed:', event);
+      console.log('[Push] action performed', {
+        actionId: event.actionId,
+        hasData: Boolean(event.notification?.data),
+      });
       activeHandlers.onActionPerformed?.(event);
     });
   }

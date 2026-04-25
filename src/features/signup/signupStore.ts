@@ -60,16 +60,15 @@ export const useSignupStore = create<SignupState>((set) => ({
   setAgreement: (key, value) =>
     set((state) => ({ agreements: { ...state.agreements, [key]: value } })),
   setAllAgreements: (value) =>
-    set({
+    set((state) => ({
       agreements: {
+        ...state.agreements,
         age14: value,
         terms: value,
         privacy: value,
-        aiDataUsage: value,
-        overseas: value,
         marketing: value,
       },
-    }),
+    })),
 
   // set 함수 모음
   setRole: (r) => set({ role: r }),

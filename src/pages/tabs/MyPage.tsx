@@ -28,6 +28,28 @@ import {
 import RoleIcon from '@/components/RoleIcon';
 import { useModalStore } from '@/features/modal/modalStore';
 import Skeleton from '@/components/Skeleton';
+import { unregisterPushNotifications } from '@/utils/pushNotifications';
+
+const clearLocalSession = async () => {
+  await Promise.all([
+    removeItem('accessToken'),
+    removeItem('refreshToken'),
+    removeItem('registrationToken'),
+    removeItem('alarmEnabled'),
+    removeItem('pushToken'),
+  ]);
+  setAccessToken(null);
+  useSignupStore.getState().reset();
+};
+
+const getErrorMessage = (error: unknown, fallback: string) => {
+  if (error instanceof Error && error.message) return error.message;
+  if (typeof error === 'string' && error.trim()) return error;
+  const maybeMessage = (error as { message?: unknown } | null)?.message;
+  return typeof maybeMessage === 'string' && maybeMessage.trim()
+    ? maybeMessage
+    : fallback;
+};
 
 export default function MyPage() {
   const navigate = useNavigate();
@@ -44,13 +66,12 @@ export default function MyPage() {
       setLoading(true);
 
       const token = await getItem('accessToken');
-      console.log('[MyPage] accessToken exists:', Boolean(token));
       if (token) setAccessToken(token);
 
       const res = await getMyPage();
       setData(res);
-    } catch (e: any) {
-      console.error(e?.message || '마이페이지를 불러오지 못했습니다');
+    } catch (e: unknown) {
+      console.error(getErrorMessage(e, '마이페이지를 불러오지 못했습니다'));
     } finally {
       setLoading(false);
     }
@@ -89,8 +110,8 @@ export default function MyPage() {
               const res = await patchMyPage({ isFamilyInviteEnabled: true });
               setData(res);
               openModal({ content: '초대코드가 재발급되었습니다.' });
-            } catch (e: any) {
-              openModal({ content: e?.message || '초대코드 재발급에 실패했습니다' });
+            } catch (e: unknown) {
+              openModal({ content: getErrorMessage(e, '초대코드 재발급에 실패했습니다') });
             } finally {
               setUpdating(false);
             }
@@ -129,15 +150,14 @@ export default function MyPage() {
       onConfirm: async () => {
         try {
           setUpdating(true);
+          await unregisterPushNotifications().catch((error) => {
+            console.warn('[MyPage] push cleanup failed before logout', error);
+          });
           await logout();
-          await removeItem('accessToken');
-          await removeItem('refreshToken');
-          await removeItem('registrationToken');
-          setAccessToken(null);
-          useSignupStore.getState().reset();
+          await clearLocalSession();
           navigate('/', { replace: true });
-        } catch (e: any) {
-          openModal({ content: e?.message || '로그아웃에 실패했습니다' });
+        } catch (e: unknown) {
+          openModal({ content: getErrorMessage(e, '로그아웃에 실패했습니다') });
         }
         finally {
           setUpdating(false);
@@ -158,14 +178,14 @@ export default function MyPage() {
         if (deleting) return;
         try {
           setDeleting(true);
+          await unregisterPushNotifications().catch((error) => {
+            console.warn('[MyPage] push cleanup failed before account deletion', error);
+          });
           await deleteMember();
-          await removeItem('accessToken');
-          await removeItem('refreshToken');
-          await removeItem('registrationToken');
-          useSignupStore.getState().reset();
+          await clearLocalSession();
           navigate('/', { replace: true });
-        } catch (e: any) {
-          openModal({ content: e?.message || '회원 탈퇴에 실패했습니다' });
+        } catch (e: unknown) {
+          openModal({ content: getErrorMessage(e, '회원 탈퇴에 실패했습니다') });
         } finally {
           setDeleting(false);
         }

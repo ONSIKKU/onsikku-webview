@@ -28,10 +28,10 @@ export default function HistoryPage() {
   const paramYear = Number(searchParams.get('year'));
   const paramMonth = Number(searchParams.get('month'));
 
-  const now = new Date();
+  const defaultDate = useMemo(() => new Date(), []);
   // Default to current date if params missing
-  const selectedYear = paramYear > 0 ? paramYear : now.getFullYear();
-  const selectedMonth = paramMonth > 0 ? paramMonth : now.getMonth() + 1;
+  const selectedYear = paramYear > 0 ? paramYear : defaultDate.getFullYear();
+  const selectedMonth = paramMonth > 0 ? paramMonth : defaultDate.getMonth() + 1;
 
   const [questions, setQuestions] = useState<QuestionDetails[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,12 +52,12 @@ export default function HistoryPage() {
   // Ensure URL always has params (for initial load consistency)
   useEffect(() => {
     if (!paramYear || !paramMonth) {
-      setSearchParams({
-        year: String(now.getFullYear()),
-        month: String(now.getMonth() + 1),
-      }, { replace: true });
+        setSearchParams({
+          year: String(defaultDate.getFullYear()),
+          month: String(defaultDate.getMonth() + 1),
+        }, { replace: true });
     }
-  }, [paramYear, paramMonth, setSearchParams]);
+  }, [defaultDate, paramYear, paramMonth, setSearchParams]);
 
   // Helper to safely get date value for sorting
   const getDateValue = (q: QuestionDetails): number => {
@@ -85,7 +85,7 @@ export default function HistoryPage() {
       });
 
       setQuestions(sortedQuestions);
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error('[월별 질문 조회 에러]', e);
     } finally {
       setLoading(false);
@@ -94,21 +94,21 @@ export default function HistoryPage() {
 
   // Re-sort when sortOrder changes without re-fetching if data exists
   useEffect(() => {
-    if (questions.length > 0) {
-      const sorted = [...questions].sort((a, b) => {
+    setQuestions((currentQuestions) => {
+      if (currentQuestions.length === 0) return currentQuestions;
+
+      const sorted = [...currentQuestions].sort((a, b) => {
         const dateA = getDateValue(a);
         const dateB = getDateValue(b);
         return sortOrder === 'newest' ? dateB - dateA : dateA - dateB;
       });
       
       // Compare by ID order to see if it actually changed
-      const currentIds = questions.map(q => q.questionInstanceId).join(',');
+      const currentIds = currentQuestions.map(q => q.questionInstanceId).join(',');
       const sortedIds = sorted.map(q => q.questionInstanceId).join(',');
       
-      if (currentIds !== sortedIds) {
-        setQuestions(sorted);
-      }
-    }
+      return currentIds !== sortedIds ? sorted : currentQuestions;
+    });
   }, [sortOrder]);
 
   useEffect(() => {
@@ -145,8 +145,8 @@ export default function HistoryPage() {
   };
 
   const handleNextMonth = () => {
-    const maxYear = now.getFullYear();
-    const maxMonth = now.getMonth() + 1;
+    const maxYear = defaultDate.getFullYear();
+    const maxMonth = defaultDate.getMonth() + 1;
 
     if (
       selectedYear > maxYear ||
@@ -288,20 +288,19 @@ export default function HistoryPage() {
   }, [displayedQuestions, selectedMonth, selectedYear]);
 
   useEffect(() => {
-    if (weekGroups.length === 0) {
-      setExpandedWeekKeys(new Set());
-      return;
-    }
+    setExpandedWeekKeys((currentKeys) => {
+      if (weekGroups.length === 0) {
+        return currentKeys.size > 0 ? new Set() : currentKeys;
+      }
 
-    const available = new Set(weekGroups.map((g) => g.key));
-    let hasAny = false;
-    expandedWeekKeys.forEach((key) => {
-      if (available.has(key)) hasAny = true;
+      const available = new Set(weekGroups.map((g) => g.key));
+      let hasAny = false;
+      currentKeys.forEach((key) => {
+        if (available.has(key)) hasAny = true;
+      });
+
+      return hasAny ? currentKeys : new Set([weekGroups[0].key]);
     });
-
-    if (!hasAny) {
-      setExpandedWeekKeys(new Set([weekGroups[0].key]));
-    }
   }, [weekGroups]);
 
   useEffect(() => {
@@ -459,7 +458,10 @@ export default function HistoryPage() {
 
       {/* Date Picker Modal */}
       {showDatePicker && (
-        <div className="fixed inset-0 bg-black/50 flex items-end z-[60]">
+        <div
+          data-route-modal="true"
+          className="fixed inset-0 bg-black/50 flex items-end z-[60]"
+        >
           <div className="bg-white rounded-t-[30px] p-6 w-full animate-fade-in-up">
             <div className="flex flex-row justify-between items-center mb-6 border-b border-gray-100 pb-4">
               <button type="button" onClick={() => setShowDatePicker(false)} className="active:opacity-70">

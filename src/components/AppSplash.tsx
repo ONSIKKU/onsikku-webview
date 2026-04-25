@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import Lottie from 'lottie-react';
 import splashAnimation from '@/assets/images/onsikku_splash.json';
 
@@ -9,16 +9,16 @@ type AppSplashProps = {
 export default function AppSplash({ onDone }: AppSplashProps) {
   const finishedRef = useRef(false);
 
-  const finish = () => {
+  const finish = useCallback(() => {
     if (finishedRef.current) return;
     finishedRef.current = true;
     onDone();
-  };
+  }, [onDone]);
 
   useEffect(() => {
     const timer = window.setTimeout(finish, 2200);
     return () => window.clearTimeout(timer);
-  }, []);
+  }, [finish]);
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-orange-50">

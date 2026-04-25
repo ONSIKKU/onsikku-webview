@@ -1,16 +1,21 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Button from "@/components/Button";
 import SignUpHeader from "@/components/SignUpHeader";
 import { useSignupStore } from "@/features/signup/signupStore";
 import { getItem, setItem } from "@/utils/AsyncStorage";
 import { setAccessToken, signup } from "@/utils/api";
+import type { SignupRequest } from "@/utils/api";
 import { getApiFamilyRole } from "@/utils/labels";
 import { useModalStore } from "@/features/modal/modalStore";
+
+const normalizeInvitationCode = (value: string) =>
+  value.replace(/\s/g, "").toUpperCase().slice(0, 8);
 
 export default function FamilyCodePage() {
   const navigate = useNavigate();
   const { openModal } = useModalStore();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const {
     familyMode,
     setFamilyMode,
@@ -27,20 +32,21 @@ export default function FamilyCodePage() {
   } = useSignupStore();
 
   useEffect(() => {
-    // Basic guard: if store is empty, user might have refreshed or accessed directly
     if (!role || !gender || !birthDate || !nickname) {
-       // Ideally redirect to start of flow
-       // navigate('/signup/role');
+      navigate("/signup/agree", { replace: true });
     }
-  }, [role, gender, birthDate, nickname]);
+  }, [birthDate, gender, navigate, nickname, role]);
 
   const canSubmit = useMemo(() => {
-    if (!role || !gender || !birthDate || !nickname) return false;
+    if (!role || !gender || !birthDate || !nickname.trim()) return false;
     if (familyMode === "CREATE") return !!familyName.trim();
-    return !!familyInvitationCode.trim();
+    return normalizeInvitationCode(familyInvitationCode).length === 8;
   }, [familyMode, familyName, familyInvitationCode, role, gender, birthDate, nickname]);
 
   const submit = async () => {
+    if (!canSubmit || isSubmitting) return;
+
+    setIsSubmitting(true);
     try {
       const registrationToken = await getItem("registrationToken");
       if (!registrationToken) throw new Error("registrationToken이 없습니다. 다시 로그인해주세요.");
@@ -48,19 +54,22 @@ export default function FamilyCodePage() {
       if (!role || !gender) throw new Error("필수 정보가 누락되었습니다.");
 
       const apiFamilyRole = getApiFamilyRole(role, gender);
+      const trimmedNickname = nickname.trim();
+      const trimmedFamilyName = familyName.trim();
+      const normalizedInvitationCode = normalizeInvitationCode(familyInvitationCode);
 
-      const payload = {
+      const payload: SignupRequest = {
         registrationToken,
         familyRole: apiFamilyRole,
-        nickname, 
+        nickname: trimmedNickname,
         birthDate, 
         profileImageUrl: uri,
-        familyName: familyMode === "CREATE" ? familyName : undefined,
-        familyInvitationCode: familyMode === "JOIN" ? familyInvitationCode : undefined,
+        familyName: familyMode === "CREATE" ? trimmedFamilyName : undefined,
+        familyInvitationCode: familyMode === "JOIN" ? normalizedInvitationCode : undefined,
         familyMode,
-      } as const;
+      };
 
-      const result = await signup(payload as any);
+      const result = await signup(payload);
 
       if (result.accessToken) {
         await setItem("accessToken", result.accessToken);
@@ -72,15 +81,19 @@ export default function FamilyCodePage() {
 
       reset();
       navigate("/home", { replace: true });
-    } catch (e: any) {
-      openModal({ content: e?.message || "회원가입에 실패했습니다." });
+    } catch (e: unknown) {
+      openModal({
+        content: e instanceof Error ? e.message : "회원가입에 실패했습니다.",
+      });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
     <div className="flex min-h-screen flex-col bg-white pt-safe">
       {/* Scrollable Content */}
-      <div className="flex-1 overflow-y-auto px-5 pb-40 pt-2 scrollbar-hide">
+      <div className="flex-1 overflow-y-auto px-5 pb-6 pt-2 scrollbar-hide">
         <SignUpHeader
           title="가족에 합류할 시간이에요"
           description="새로운 가족 공간을 만들거나, 초대 코드로 기존 가족에 참여하세요."
@@ -122,7 +135,8 @@ export default function FamilyCodePage() {
               <label className="block text-sm font-bold text-gray-900 ml-1">가족 이름</label>
               <input
                 value={familyName}
-                onChange={(e) => setFamilyName(e.target.value)}
+                onChange={(e) => setFamilyName(e.target.value.slice(0, 20))}
+                maxLength={20}
                 placeholder="예) 행복한 우리집"
                 className="w-full rounded-2xl border-2 border-gray-100 bg-gray-50 px-5 py-4 text-lg font-medium shadow-sm outline-none transition-all focus:border-onsikku-dark-orange focus:bg-white focus:ring-1 focus:ring-onsikku-dark-orange placeholder:text-gray-400"
               />
@@ -133,8 +147,10 @@ export default function FamilyCodePage() {
               <label className="block text-sm font-bold text-gray-900 ml-1">초대코드 입력</label>
               <input
                 value={familyInvitationCode}
-                onChange={(e) => setFamilyInvitationCode(e.target.value.slice(0, 8))}
+                onChange={(e) => setFamilyInvitationCode(normalizeInvitationCode(e.target.value))}
                 maxLength={8}
+                autoCapitalize="characters"
+                autoCorrect="off"
                 placeholder="전달받은 8자리 코드"
                 className="w-full rounded-2xl border-2 border-gray-100 bg-gray-50 px-5 py-4 text-lg font-medium shadow-sm outline-none transition-all focus:border-onsikku-dark-orange focus:bg-white focus:ring-1 focus:ring-onsikku-dark-orange placeholder:text-gray-400"
               />
@@ -145,14 +161,14 @@ export default function FamilyCodePage() {
       </div>
 
       {/* Fixed Bottom Button */}
-      <div className="fixed bottom-0 left-0 right-0 z-10 bg-gradient-to-t from-white via-white to-transparent pb-safe pb-8 pt-4">
+      <div className="shrink-0 bg-white pb-safe pb-8 pt-4">
         <div className="mx-auto max-w-md px-5">
           <Button 
             className="w-full py-4 text-lg shadow-xl shadow-orange-100/50" 
-            disabled={!canSubmit} 
+            disabled={!canSubmit || isSubmitting}
             onClick={submit}
           >
-            시작하기
+            {isSubmitting ? "시작 중..." : "시작하기"}
           </Button>
         </div>
       </div>

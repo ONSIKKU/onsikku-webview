@@ -9,6 +9,7 @@ import {
   type BlockedMember,
   unblockUser,
 } from '@/utils/api';
+import { getErrorMessage } from '@/utils/errors';
 
 export default function BlockedUsersPage() {
   const { openModal } = useModalStore();
@@ -47,8 +48,10 @@ export default function BlockedUsersPage() {
           await unblockUser({ blockedId: member.blockedId });
           await fetchBlockedMembers();
           openModal({ content: '차단이 해제되었습니다.' });
-        } catch (e: any) {
-          openModal({ content: e?.message || '차단 해제에 실패했습니다.' });
+        } catch (e: unknown) {
+          openModal({
+            content: getErrorMessage(e, '차단 해제에 실패했습니다.'),
+          });
         } finally {
           setProcessingId(null);
         }

@@ -14,6 +14,25 @@ type PushTokenPayload = {
   deviceType?: string;
 };
 
+type ApiErrorShape = {
+  code?: string | number;
+  status?: string | number;
+  statusCode?: string | number;
+  errorMessage?: string;
+  message?: string;
+  error?: string;
+  reason?: string;
+  data?: {
+    message?: string;
+  };
+};
+
+const asApiErrorShape = (value: unknown): ApiErrorShape | null =>
+  value && typeof value === "object" ? (value as ApiErrorShape) : null;
+
+const hasResult = <T>(value: unknown): value is { result: T } =>
+  !!value && typeof value === "object" && "result" in value;
+
 const DEFAULT_PUSH_TOKEN_PATH =
   (import.meta.env.VITE_PUSH_TOKEN_PATH as string | undefined) ||
   "/api/notifications/tokens";
@@ -31,6 +50,12 @@ const normalizeDeviceType = (platform: string) => {
   if (lower === "android") return "ANDROID";
   if (lower === "ios") return "IOS";
   return "ETC";
+};
+
+const maskToken = (token?: string) => {
+  if (!token) return undefined;
+  if (token.length <= 10) return "***";
+  return `${token.slice(0, 6)}...${token.slice(-4)}`;
 };
 
 const buildPushTokenBody = (payload: PushTokenPayload) => {
@@ -61,11 +86,7 @@ const callPushTokenEndpoint = async <T>(
         platform: parsed.platform,
         deviceType: parsed.deviceType,
         hasFcmToken: Boolean(parsed.fcmToken),
-        tokenPreview: parsed.fcmToken
-          ? `${parsed.fcmToken.slice(0, 12)}...`
-          : parsed.token
-            ? `${parsed.token.slice(0, 12)}...`
-            : undefined,
+        tokenPreview: maskToken(parsed.fcmToken || parsed.token),
       });
     } catch {
       console.log('[Push][API] request', { method, paths, bodySize: body.length });
@@ -118,7 +139,7 @@ const getHeaders = (extra?: Record<string, string>) => {
   return headers;
 };
 
-const parseJsonSafe = (text: string) => {
+const parseJsonSafe = (text: string): unknown => {
   if (!text) return null;
   try {
     return JSON.parse(text);
@@ -127,21 +148,27 @@ const parseJsonSafe = (text: string) => {
   }
 };
 
-const getAuthFailureMessage = (json: any, text: string) =>
-  json &&
-  (json.errorMessage ||
-    json.message ||
-    json.error ||
-    json.reason ||
-    json.data?.message ||
-    text);
+const getAuthFailureMessage = (json: unknown, text: string) => {
+  const parsed = asApiErrorShape(json);
+  if (!parsed) return text;
 
-const isAuthErrorResponse = (status: number, json: any) => {
+  return (
+    parsed.errorMessage ||
+    parsed.message ||
+    parsed.error ||
+    parsed.reason ||
+    parsed.data?.message ||
+    text
+  );
+};
+
+const isAuthErrorResponse = (status: number, json: unknown) => {
   if (status === 401 || status === 403) return true;
 
-  if (!json || typeof json !== "object") return false;
+  const parsed = asApiErrorShape(json);
+  if (!parsed) return false;
 
-  const code = json.code;
+  const code = parsed.code;
   const codeStr = typeof code === "string" ? code.toUpperCase() : String(code ?? "").toUpperCase();
   const authCodes = [
     "UNAUTHORIZED",
@@ -161,7 +188,7 @@ const isAuthErrorResponse = (status: number, json: any) => {
   }
   if (codeStr && authCodes.includes(codeStr)) return true;
 
-  const statusCode = json.status ?? json.statusCode;
+  const statusCode = parsed.status ?? parsed.statusCode;
   if (
     (typeof statusCode === "number" && [401, 403].includes(statusCode)) ||
     authCodes.includes(
@@ -172,11 +199,11 @@ const isAuthErrorResponse = (status: number, json: any) => {
   }
 
   const message = String(
-    json.errorMessage ||
-      json.message ||
-      json.error ||
-      json.reason ||
-      json.data?.message ||
+    parsed.errorMessage ||
+      parsed.message ||
+      parsed.error ||
+      parsed.reason ||
+      parsed.data?.message ||
       ""
   );
   if (!message) return false;
@@ -192,7 +219,13 @@ const isAuthErrorResponse = (status: number, json: any) => {
 
 const handleSessionExpired = async () => {
   setAccessToken(null);
-  await Promise.all([removeItem("accessToken"), removeItem("refreshToken")]);
+  await Promise.all([
+    removeItem("accessToken"),
+    removeItem("refreshToken"),
+    removeItem("registrationToken"),
+    removeItem("alarmEnabled"),
+    removeItem("pushToken"),
+  ]);
   if (onSessionExpired) onSessionExpired();
 };
 
@@ -248,13 +281,15 @@ export async function apiFetch<T>(
   }
 
   if (!res.ok) {
+    const errorJson = asApiErrorShape(json);
     // Prioritize 'errorMessage' from the new ErrorResponse DTO
     const message =
-      (json && (json.errorMessage || json.message || json.error)) || `HTTP ${res.status}`;
+      (errorJson && (errorJson.errorMessage || errorJson.message || errorJson.error)) ||
+      `HTTP ${res.status}`;
     throw new Error(message);
   }
 
-  return (json && (json.result ?? json)) as T;
+  return hasResult<T>(json) ? json.result : (json as T);
 }
 
 export async function apiFetchText(
@@ -295,7 +330,7 @@ export async function apiFetchText(
   }
 
   const text = await res.text();
-  const json: any = parseJsonSafe(text);
+  const json = parseJsonSafe(text);
 
   if (isAuthErrorResponse(res.status, json)) {
     const message =
@@ -305,8 +340,9 @@ export async function apiFetchText(
   }
 
   if (!res.ok) {
+    const errorJson = asApiErrorShape(json);
     const message =
-      (json && (json.errorMessage || json.message || json.error)) ||
+      (errorJson && (errorJson.errorMessage || errorJson.message || errorJson.error)) ||
       text ||
       `HTTP ${res.status}`;
     throw new Error(message);
@@ -421,7 +457,7 @@ export async function getMyPage() {
 }
 
 export async function patchMyPage(payload: AppMypagePatch) {
-  const apiPayload: any = {};
+  const apiPayload: Record<string, unknown> = {};
   if (payload.birthDate !== undefined) apiPayload.birthDate = payload.birthDate;
   if (payload.profileImageUrl !== undefined) apiPayload.profileImageUrl = payload.profileImageUrl;
   if (payload.nickname !== undefined) apiPayload.nickname = payload.nickname;
@@ -540,13 +576,50 @@ export type QuestionAssignment = {
   lastRemindedAt: string | null;
 };
 
+export type AnswerContent =
+  | string
+  | {
+      text?: string;
+      [key: string]: unknown;
+    }
+  | null;
+
+type ApiAnswer = {
+  id: string;
+  answerId?: string;
+  member?: ApiMember;
+  memberId?: string;
+  content?: AnswerContent;
+  createdAt: string;
+  updatedAt: string;
+  answerType: string;
+  questionContent?: string;
+  questionInstanceId?: string;
+  familyRole?: FamilyRole;
+  gender?: "MALE" | "FEMALE";
+  myReaction?: "LIKE" | "ANGRY" | "SAD" | "FUNNY";
+};
+
+type ApiComment = {
+  id: string;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+  member?: ApiMember;
+  familyRole?: FamilyRole;
+  gender?: "MALE" | "FEMALE";
+  parentComment?: {
+    id: string;
+  };
+};
+
 // API Spec for QuestionDetails
 export type ApiQuestionDetails = {
   memberQuestionId: string;
   content: string;
   member: ApiMember;
-  answer?: any; 
-  comments?: any[];
+  answer?: ApiAnswer; 
+  comments?: ApiComment[];
   sentDate?: string; 
   likeCount?: number;
   angryCount?: number;
@@ -578,7 +651,7 @@ export type Answer = {
   answerId: string;
   member: Member;
   memberId?: string;
-  content: any;
+  content: AnswerContent;
   createdAt: string;
   updatedAt: string;
   answerType: string;
@@ -634,7 +707,7 @@ export type AnswerRequest = {
     memberQuestionId?: string; // API spec
     questionAssignmentId?: string; // UI alias
     answerType?: "TEXT" | "IMAGE" | "AUDIO" | "VIDEO" | "FILE" | "MIXED";
-    content: any;
+    content: AnswerContent;
     reactionType?: "LIKE" | "ANGRY" | "SAD" | "FUNNY";
 };
 
@@ -675,7 +748,9 @@ export async function getTodayQuestions() {
   };
 }
 
-export async function getQuestionInstanceDetails(memberQuestionId: string) {
+export async function getQuestionInstanceDetails(
+  memberQuestionId: string,
+): Promise<QuestionInstanceDetailsResponse> {
     const res = await apiFetch<ApiQuestionResponse>(`/api/questions/${memberQuestionId}`, {
     method: "GET",
   });
@@ -686,18 +761,18 @@ export async function getQuestionInstanceDetails(memberQuestionId: string) {
     return { questionDetails: null };
   }
 
-    const answer: Answer | undefined = rawDetails.answer
+    const rawAnswer = rawDetails.answer;
+    const answer: Answer | undefined = rawAnswer
       ? {
-          ...rawDetails.answer,
-          id: rawDetails.answer.id,
-          answerId: rawDetails.answer.id,
+          ...rawAnswer,
+          id: rawAnswer.answerId || rawAnswer.id,
+          answerId: rawAnswer.answerId || rawAnswer.id,
           myReaction: rawDetails.myReaction,
           member: convertToAppMember(
-            (rawDetails.answer && (rawDetails.answer as any).member) ??
-              rawDetails.member,
+            rawAnswer.member ?? rawDetails.member,
           ),
-          memberId: (rawDetails.answer && (rawDetails.answer as any).member?.id) ||
-            rawDetails.member?.id,
+          memberId: rawAnswer.member?.id || rawAnswer.memberId || rawDetails.member?.id,
+          content: rawAnswer.content ?? null,
           likeReactionCount: rawDetails.likeCount || 0,
           angryReactionCount: rawDetails.angryCount || 0,
           sadReactionCount: rawDetails.sadCount || 0,
@@ -705,7 +780,7 @@ export async function getQuestionInstanceDetails(memberQuestionId: string) {
         }
       : undefined;
 
-  const comments: Comment[] = (rawDetails.comments || []).map((c: any) => ({
+  const comments: Comment[] = (rawDetails.comments || []).map((c) => ({
       id: c.id,
       content: c.content,
       createdAt: c.createdAt,
@@ -726,7 +801,7 @@ export async function getQuestionInstanceDetails(memberQuestionId: string) {
 }
 
 export async function createAnswer(payload: AnswerRequest) {
-    return apiFetch<any>("/api/questions/answers", {
+    return apiFetch<Answer>("/api/questions/answers", {
         method: "POST",
         body: JSON.stringify({
             memberQuestionId: payload.memberQuestionId || payload.questionAssignmentId,
@@ -749,6 +824,16 @@ export type QuestionDetails = {
   gender: "MALE" | "FEMALE";
   answerContent?: string;
   member?: ApiMember;
+};
+
+export type QuestionInstanceDetailsResponse = {
+  questionDetails: {
+    questionContent: string;
+    questionInstanceId: string;
+    questionAssignments: QuestionAssignment[];
+    answers: Answer[];
+    comments: Comment[];
+  } | null;
 };
 
 // 월별 질문 조회
@@ -917,7 +1002,7 @@ export type NotificationHistory = {
 };
 
 export type NotificationHistoryResponse = {
-  notificationHistorySlice: {
+  notificationHistorySlice?: {
     content: NotificationHistory[];
     size: number;
     number: number;
@@ -926,7 +1011,7 @@ export type NotificationHistoryResponse = {
     numberOfElements: number;
     empty: boolean;
   };
-  unReadCount: number;
+  unReadCount?: number;
 };
 
 export async function getNotifications(page: number = 0, size: number = 20) {
@@ -938,6 +1023,13 @@ export async function getNotifications(page: number = 0, size: number = 20) {
     method: "GET",
   });
   return response;
+}
+
+export async function getUnreadNotificationCount() {
+  const response = await apiFetch<NotificationHistoryResponse>("/api/notifications/count/unread", {
+    method: "GET",
+  });
+  return response.unReadCount ?? 0;
 }
 
 export async function readNotification(notificationId: string) {
@@ -1000,20 +1092,33 @@ export async function deletePushToken(payload?: PushTokenPayload) {
 }
 
 
-export async function createComment(payload: any) {
-    const body = { ...payload };
+export type CreateCommentRequest = {
+  answerId: string;
+  content: string;
+  parentCommentId?: string;
+  questionInstanceId?: string;
+};
+
+export type UpdateCommentRequest = {
+  commentId: string;
+  content: string;
+  questionInstanceId?: string;
+};
+
+export async function createComment(payload: CreateCommentRequest) {
+    const body: Record<string, unknown> = { ...payload };
     if (body.questionInstanceId) {
         body.memberQuestionId = body.questionInstanceId;
         delete body.questionInstanceId;
     }
-    return apiFetch<any>("/api/comments", {
+    return apiFetch<Comment>("/api/comments", {
         method: "POST",
         body: JSON.stringify(body)
     });
 }
 
-export async function updateComment(payload: any) {
-    return apiFetch<any>("/api/comments", {
+export async function updateComment(payload: UpdateCommentRequest) {
+    return apiFetch<Comment>("/api/comments", {
         method: "PATCH",
         body: JSON.stringify(payload)
     });
@@ -1026,7 +1131,7 @@ export async function deleteComment(commentId: string) {
 }
 
 export async function updateAnswer(payload: AnswerRequest) {
-     return apiFetch<any>("/api/questions/answers", {
+     return apiFetch<Answer>("/api/questions/answers", {
         method: "PATCH",
         body: JSON.stringify({
              answerId: payload.answerId,

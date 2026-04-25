@@ -2,7 +2,12 @@ import { useEffect, useState, useCallback } from 'react';
 import TodayQuestion from '@/components/TodayQuestion';
 import TodayRespondent from '@/components/TodayRespondent';
 import { getRoleIconAndText } from '@/utils/labels';
-import type { Member, QuestionAssignment, QuestionResponse } from '@/utils/api';
+import type {
+  FamilyRole,
+  Member,
+  QuestionAssignment,
+  QuestionResponse,
+} from '@/utils/api';
 import { apiFetch, getMyPage, setAccessToken } from '@/utils/api';
 import { getItem } from '@/utils/AsyncStorage';
 import Skeleton from '@/components/Skeleton';
@@ -15,10 +20,12 @@ export default function NotAssignedPage() {
   const [questionContent, setQuestionContent] = useState<string>('');
 
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
-  const [currentUserGender, setCurrentUserGender] = useState<string | null>(
+  const [currentUserRole, setCurrentUserRole] = useState<FamilyRole | null>(
     null,
   );
+  const [currentUserGender, setCurrentUserGender] = useState<
+    Member['gender'] | null
+  >(null);
 
   const fetchData = useCallback(async () => {
     try {
@@ -116,7 +123,7 @@ export default function NotAssignedPage() {
   }
 
   const greeting =
-    getRoleIconAndText(currentUserRole as any, currentUserGender as any).text ||
+    getRoleIconAndText(currentUserRole, currentUserGender).text ||
     '가족';
 
   return (

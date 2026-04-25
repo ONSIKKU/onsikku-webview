@@ -7,6 +7,7 @@ import { genderToKo, getApiFamilyRole } from '@/utils/labels';
 import { IoArrowBack, IoCalendarOutline } from 'react-icons/io5';
 import { useModalStore } from '@/features/modal/modalStore';
 import Skeleton from '@/components/Skeleton';
+import { getErrorMessage } from '@/utils/errors';
 
 export default function MyPageEdit() {
   const navigate = useNavigate();
@@ -40,7 +41,7 @@ export default function MyPageEdit() {
         if (token) setAccessToken(token);
 
         const res = await getMyPage();
-        setGender((res.member.gender as any) || '');
+        setGender(res.member.gender || '');
         setBirthDate(res.member.birthDate || '');
 
         // Map API specific role back to Category for UI
@@ -59,8 +60,8 @@ export default function MyPageEdit() {
           setIsAlarmEnabled(res.member.alarmEnabled ?? true);
         }
         setIsFamilyInviteEnabled(res.family.familyInviteEnabled ?? true);
-      } catch (e: any) {
-        console.error(e?.message || '정보를 불러오지 못했습니다');
+      } catch (e: unknown) {
+        console.error(getErrorMessage(e, '정보를 불러오지 못했습니다'));
       } finally {
         setLoading(false);
       }
@@ -116,8 +117,8 @@ export default function MyPageEdit() {
 
       openModal({ content: '프로필이 수정되었습니다.' });
       navigate(-1);
-    } catch (e: any) {
-      openModal({ content: e?.message || '수정에 실패했습니다' });
+    } catch (e: unknown) {
+      openModal({ content: getErrorMessage(e, '수정에 실패했습니다') });
     } finally {
       setSaving(false);
     }
@@ -398,7 +399,10 @@ export default function MyPageEdit() {
 
       {/* Date Picker Modal */}
       {showDatePicker && (
-        <div className="fixed inset-0 z-50 flex items-end bg-black/50">
+        <div
+          data-route-modal="true"
+          className="fixed inset-0 z-50 flex items-end bg-black/50"
+        >
           <div className="w-full bg-white rounded-t-3xl p-6">
             <div className="flex flex-row justify-between items-center mb-4 border-b border-gray-100 pb-4">
               <button type="button" onClick={() => setShowDatePicker(false)}>

@@ -33,6 +33,7 @@ import ReplyPage from '@/pages/reply/ReplyPage';
 import ReplyDetailPage from '@/pages/reply/ReplyDetailPage';
 
 import DeepLinkBridge from '@/routes/DeepLinkBridge';
+import IOSSwipeBackGuard from '@/routes/IOSSwipeBackGuard';
 import AppSplash from '@/components/AppSplash';
 import { Capacitor } from '@capacitor/core';
 import { Keyboard } from '@capacitor/keyboard';
@@ -75,6 +76,7 @@ export default function App() {
       {showSplash && <AppSplash onDone={() => setShowSplash(false)} />}
 
       <DeepLinkBridge />
+      <IOSSwipeBackGuard />
       <SessionBridge />
 
       <Routes>

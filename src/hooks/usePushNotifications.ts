@@ -49,7 +49,7 @@ export function usePushNotifications() {
               return;
             }
 
-            navigate('/notification');
+            navigate('/notification', { replace: true });
           },
         });
         await unregisterPushNotifications();
@@ -71,7 +71,7 @@ export function usePushNotifications() {
           }
 
           // 기본: 알림 탭으로 이동
-          navigate('/notification');
+          navigate('/notification', { replace: true });
         },
       });
     };

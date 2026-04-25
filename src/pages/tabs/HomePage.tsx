@@ -3,6 +3,7 @@ import TodayQuestion from '@/components/TodayQuestion';
 import TodayRespondent from '@/components/TodayRespondent';
 import type {
   Answer,
+  FamilyRole,
   Member,
   QuestionAssignment,
 } from '@/utils/api';
@@ -14,7 +15,7 @@ import {
 } from '@/utils/api';
 import { getItem } from '@/utils/AsyncStorage';
 import { getRoleIconAndText } from '@/utils/labels';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { IoRefreshOutline } from 'react-icons/io5';
 import Skeleton from '@/components/Skeleton';
@@ -32,10 +33,12 @@ export default function HomePage() {
   const [recentAnswers, setRecentAnswers] = useState<Answer[]>([]);
   const [loadingAnswers, setLoadingAnswers] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
-  const [currentUserGender, setCurrentUserGender] = useState<string | null>(
+  const [currentUserRole, setCurrentUserRole] = useState<FamilyRole | null>(
     null,
   );
+  const [currentUserGender, setCurrentUserGender] = useState<
+    Member['gender'] | null
+  >(null);
   const [currentUserNickname, setCurrentUserNickname] = useState<string | null>(
     null,
   );
@@ -84,12 +87,10 @@ export default function HomePage() {
         setQuestionContent(questionDetails.questionContent || '');
         setQuestionInstanceId(questionDetails.questionInstanceId || null);
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error('[오늘의 질문 조회 에러]', e);
-      // Only show error if not existing data or if explicit error handling needed
-      if (!questions.length) console.error(e?.message || '질문을 불러오지 못했습니다');
     }
-  }, [refreshing, questions.length]);
+  }, [refreshing]);
 
   const fetchRecentAnswers = useCallback(async () => {
     try {
@@ -134,12 +135,17 @@ export default function HomePage() {
       fetchRecentAnswers()
     ]);
   }, [fetchCurrentUser, fetchTodayQuestions, fetchRecentAnswers]);
+  const handleRefreshRef = useRef(handleRefresh);
+
+  useEffect(() => {
+    handleRefreshRef.current = handleRefresh;
+  }, [handleRefresh]);
 
   // Initial Load
   useEffect(() => {
     const init = async () => {
       setLoading(true);
-      await handleRefresh();
+      await handleRefreshRef.current();
       setLoading(false);
     };
     init();
@@ -210,7 +216,7 @@ export default function HomePage() {
   const recentAnswersData = useMemo(() => {
     return recentAnswers.map((answer) => {
       const familyRole =
-        answer.member?.familyRole || answer.familyRole || 'PARENT';
+        answer.member?.familyRole || answer.familyRole || 'FATHER';
       const gender = answer.member?.gender || answer.gender;
 
       const qContent = answer.questionContent || '';
@@ -349,7 +355,7 @@ export default function HomePage() {
   }
 
   const greetingRoleText =
-    getRoleIconAndText(currentUserRole as any, currentUserGender as any).text ||
+    getRoleIconAndText(currentUserRole, currentUserGender).text ||
     '가족';
 
   const displayGreeting = currentUserNickname || greetingRoleText;

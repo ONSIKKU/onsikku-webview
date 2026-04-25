@@ -11,6 +11,18 @@ const API_BASE =
   'https://api.onsikku.xyz';
 const AUTH_DEBUG = (import.meta.env.VITE_AUTH_DEBUG as string | undefined) === 'true';
 
+const getErrorMessage = (error: unknown, fallback: string) => {
+  if (error instanceof Error && error.message) return error.message;
+  if (typeof error === 'string' && error.trim()) return error;
+  const maybeMessage = (error as { message?: unknown } | null)?.message;
+  return typeof maybeMessage === 'string' && maybeMessage.trim()
+    ? maybeMessage
+    : fallback;
+};
+
+const getErrorCode = (error: unknown) =>
+  (error as { code?: unknown } | null)?.code;
+
 export default function DeepLinkBridge() {
   const navigate = useNavigate();
 
@@ -22,7 +34,6 @@ export default function DeepLinkBridge() {
     if (!Capacitor.isNativePlatform()) return;
 
     const sub = App.addListener('appUrlOpen', async ({ url }) => {
-      console.log('[DeepLink] appUrlOpen url =', url);
       if (AUTH_DEBUG) {
         console.log('[AppleDebug] appUrlOpen', {
           hasUrl: !!url,
@@ -56,13 +67,13 @@ export default function DeepLinkBridge() {
 
       // ✅ 같은 ticket이 또 들어오면 무시 (iOS에서 appUrlOpen 2번 오는 경우 방지)
       if (lastTicketRef.current === ticket) {
-        console.log('[DeepLink] duplicated ticket ignored:', ticket);
+        console.log('[DeepLink] duplicated ticket ignored');
         return;
       }
 
       // ✅ 처리중이면(아직 exchange 완료 전) 새 이벤트는 무시
       if (isHandlingRef.current) {
-        console.log('[DeepLink] handling in progress, ignored:', ticket);
+        console.log('[DeepLink] handling in progress, ignored');
         return;
       }
 
@@ -99,7 +110,6 @@ export default function DeepLinkBridge() {
         // BaseResponse면 result 안에 진짜 payload 있음
         const payload = json?.result ?? json;
 
-        console.log('[DeepLink] exchange payload =', payload);
         if (AUTH_DEBUG) {
           console.log('[AppleDebug] deeplink exchange response', {
             status: res.status,
@@ -149,15 +159,16 @@ export default function DeepLinkBridge() {
           if (AUTH_DEBUG) console.log('[AppleDebug] deeplink navigate /signup/agree');
           navigate('/signup/agree', { replace: true });
         }
-      } catch (e: any) {
-        console.error('[DeepLink] error:', e);
+      } catch (e: unknown) {
+        const message = getErrorMessage(e, '로그인 처리 중 오류가 발생했습니다.');
+        console.error('[DeepLink] error:', message);
         if (AUTH_DEBUG) {
           console.log('[AppleDebug] deeplink error detail', {
-            message: e?.message,
-            code: e?.code,
+            message,
+            code: getErrorCode(e),
           });
         }
-        alert(e?.message || '로그인 처리 중 오류가 발생했습니다.');
+        alert(message);
 
         // 실패하면 같은 ticket이라도 다시 시도 가능하게 하려면 lastTicketRef를 초기화
         lastTicketRef.current = null;

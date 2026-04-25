@@ -7,15 +7,23 @@ import { useModalStore } from '@/features/modal/modalStore';
 import { 
   getNotifications, 
   readNotification, 
-  deleteNotification, 
+  markAllNotificationsRead,
+  deleteAllNotifications,
   setAccessToken,
-  getGenderFromRole
 } from '@/utils/api';
 import { getItem } from '@/utils/AsyncStorage';
-import { getRoleIconAndText } from '@/utils/labels';
 import { formatTimeAgoKo } from '@/utils/dates';
 import type { Notification } from '@/components/notification/NotificationCard';
 import { useNotificationStore } from '@/features/notification/notificationStore';
+
+const getErrorMessage = (error: unknown, fallback: string) => {
+  if (error instanceof Error && error.message) return error.message;
+  if (typeof error === 'string' && error.trim()) return error;
+  const maybeMessage = (error as { message?: unknown } | null)?.message;
+  return typeof maybeMessage === 'string' && maybeMessage.trim()
+    ? maybeMessage
+    : fallback;
+};
 
 export default function NotificationPage() {
   const navigate = useNavigate();
@@ -42,20 +50,12 @@ export default function NotificationPage() {
       if (token) setAccessToken(token);
 
       const response = await getNotifications(0, 50); // Fetch first 50 for now
-      const data = response.notificationHistorySlice.content;
-      setUnreadCount(response.unReadCount || 0);
+      const data = response.notificationHistorySlice?.content || [];
+      setError('');
       
       const mapped: Notification[] = data.map((item) => {
-        const { icon, text } = item.member 
-          ? getRoleIconAndText(item.member.familyRole, getGenderFromRole(item.member.familyRole))
-          : { icon: '📢', text: '알림' };
-
         const backendTitle = (item.title || '').trim();
         const backendBody = (item.body || '').trim();
-        const payloadValues = Object.values(item.payload || {}).filter(
-          (value): value is string => Boolean(value && value.trim()),
-        );
-        const payloadText = payloadValues[0] || '';
 
         // Map backend types to UI types
         let uiType: Notification['type'] = 'system_notice';
@@ -79,40 +79,60 @@ export default function NotificationPage() {
           item.payload?.questionInstanceId;
         if (!relatedId && item.deepLink) {
            try {
-             const url = new URL(item.deepLink, 'https://dummy.com');
+             const url = new URL(item.deepLink, window.location.origin);
              relatedId =
                url.searchParams.get('questionAssignmentId') ||
                url.searchParams.get('questionInstanceId') ||
                undefined;
-           } catch (e) {
-             console.warn('Invalid deepLink URL', item.deepLink);
+           } catch {
+             console.warn('Invalid notification deepLink URL');
            }
         }
 
         return {
           id: item.id,
           type: uiType,
-          actor: text,
-          actorAvatar: icon,
           title: backendTitle,
           body: backendBody,
-          message: backendBody || payloadText || backendTitle || '새로운 알림이 도착했어요.',
           time: formatTimeAgoKo(item.publishedAt),
+          publishedAt: item.publishedAt,
           isRead: !!(item.readAt || item.confirmedAt),
           relatedEntityId: relatedId || undefined,
         };
       });
 
+      const unreadCount =
+        typeof response.unReadCount === 'number'
+          ? response.unReadCount
+          : mapped.filter((item) => !item.isRead).length;
+
+      if (unreadCount > 0) {
+        try {
+          await markAllNotificationsRead();
+          setNotifications(mapped.map((item) => ({ ...item, isRead: true })));
+          setUnreadCount(0);
+        } catch (readError: unknown) {
+          console.error(
+            'Failed to mark notifications as read on entry',
+            getErrorMessage(readError, '알림 읽음 처리에 실패했습니다.'),
+          );
+          setNotifications(mapped);
+          setUnreadCount(unreadCount);
+        }
+        return;
+      }
+
       setNotifications(mapped);
-    } catch (e: any) {
-      console.error('Failed to fetch notifications', e);
+      setUnreadCount(0);
+    } catch (e: unknown) {
+      console.error('Failed to fetch notifications', getErrorMessage(e, '알림을 불러오지 못했습니다.'));
       setError('알림을 불러오지 못했습니다.');
     } finally {
       if (showLoading) {
         setLoading(false);
       }
     }
-  }, []);
+  }, [setUnreadCount]);
 
   useEffect(() => {
     fetchNotifications(true);
@@ -177,12 +197,11 @@ export default function NotificationPage() {
     if (unreadIds.length === 0) return;
 
     try {
-      // API only supports individual read, so we call them in parallel
-      await Promise.all(unreadIds.map(id => readNotification(id)));
+      await markAllNotificationsRead();
       setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
       setUnreadCount(0);
-    } catch (e) {
-      console.error('Failed to mark all as read', e);
+    } catch (e: unknown) {
+      console.error('Failed to mark all as read', getErrorMessage(e, '알림 읽음 처리에 실패했습니다.'));
     }
   };
 
@@ -194,21 +213,8 @@ export default function NotificationPage() {
         setUnreadCount(next.filter(n => !n.isRead).length);
         return next;
       });
-    } catch (e) {
-      console.error('Failed to mark as read', e);
-    }
-  };
-
-  const handleDelete = async (id: string) => {
-    try {
-      await deleteNotification(id);
-      setNotifications(prev => {
-        const next = prev.filter(n => n.id !== id);
-        setUnreadCount(next.filter(n => !n.isRead).length);
-        return next;
-      });
-    } catch (e) {
-      console.error('Failed to delete notification', e);
+    } catch (e: unknown) {
+      console.error('Failed to mark as read', getErrorMessage(e, '알림 읽음 처리에 실패했습니다.'));
     }
   };
 
@@ -218,17 +224,16 @@ export default function NotificationPage() {
     openModal({
       type: 'confirm',
       title: '전체 삭제',
-      content: '모든 알림을 삭제하시겠어요?',
+      content: '모든 알림을 삭제할까요?\n삭제된 알림은 복구할 수 없습니다.',
       confirmText: '삭제',
       cancelText: '취소',
       onConfirm: async () => {
         try {
-          const ids = notifications.map((n) => n.id);
-          await Promise.all(ids.map((id) => deleteNotification(id)));
+          await deleteAllNotifications();
           setNotifications([]);
           setUnreadCount(0);
-        } catch (e) {
-          console.error('Failed to delete all notifications', e);
+        } catch (e: unknown) {
+          console.error('Failed to delete all notifications', getErrorMessage(e, '전체 삭제에 실패했습니다.'));
           openModal({ content: '전체 삭제에 실패했습니다.' });
         }
       },
@@ -236,26 +241,36 @@ export default function NotificationPage() {
   };
 
   const handleNavigate = async (item: Notification) => {
-    if (!item.isRead) {
-      await handleRead(item.id);
-    }
+    await handleRead(item.id);
 
     switch (item.type) {
       case 'comment':
       case 'reaction':
       case 'answer':
       case 'all_answered':
-        if (!item.relatedEntityId) return;
-        navigate(`/reply-detail?questionInstanceId=${item.relatedEntityId}`);
+        if (!item.relatedEntityId) {
+          openModal({ content: '관련 내용을 찾을 수 없습니다.' });
+          return;
+        }
+        navigate(`/reply-detail?questionInstanceId=${encodeURIComponent(item.relatedEntityId)}`);
         break;
       case 'new_question':
       case 'knock_knock':
-        if (!item.relatedEntityId) return;
-        navigate(`/reply?questionAssignmentId=${item.relatedEntityId}`);
+        if (!item.relatedEntityId) {
+          openModal({ content: '관련 질문을 찾을 수 없습니다.' });
+          return;
+        }
+        navigate(`/reply?questionAssignmentId=${encodeURIComponent(item.relatedEntityId)}`);
         break;
       case 'target_announced':
+        navigate('/home', { replace: true });
+        break;
       case 'member_joined':
+        navigate('/mypage', { replace: true });
+        break;
       case 'weekly_report':
+        navigate('/history', { replace: true });
+        break;
       case 'system_notice':
         break;
       default:
@@ -293,7 +308,7 @@ export default function NotificationPage() {
       </div>
 
       <div
-        className="flex flex-col gap-5 px-5 pb-10 pt-4"
+        className="flex flex-col gap-4 px-5 pb-[calc(env(safe-area-inset-bottom)+8.5rem)] pt-4"
         style={{
           transform: `translateY(${pullY}px)`,
           transition: isPulling && !refreshing
@@ -312,8 +327,6 @@ export default function NotificationPage() {
           loading={loading && !refreshing}
           refreshing={refreshing}
           error={error}
-          onRead={handleRead}
-          onDelete={handleDelete}
           onNavigate={handleNavigate}
         />
       </div>

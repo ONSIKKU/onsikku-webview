@@ -26,7 +26,10 @@ export default function GlobalModal() {
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-6 animate-fade-in">
+    <div
+      data-route-modal="true"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-6 animate-fade-in"
+    >
       <div className="w-full max-w-sm overflow-hidden rounded-[24px] bg-white shadow-xl animate-scale-up">
         <div className="p-6 text-center">
           {title && (

@@ -12,7 +12,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import { Keyboard, KeyboardResize } from '@capacitor/keyboard';
 import { IoRefreshOutline } from 'react-icons/io5';
-import type { Answer, Comment } from '@/utils/api';
+import type { Answer, Comment, FamilyRole, Member } from '@/utils/api';
 import {
   addReaction,
   blockUser,
@@ -32,6 +32,7 @@ import {
 } from '@/utils/api';
 import { getItem } from '@/utils/AsyncStorage';
 import { formatDateYMDKo, formatTimeAgoKo } from '@/utils/dates';
+import { getErrorMessage } from '@/utils/errors';
 import { getRoleIconAndText } from '@/utils/labels';
 import RoleIcon from '@/components/RoleIcon';
 import Skeleton from '@/components/Skeleton';
@@ -276,9 +277,16 @@ const formatTimeAgo = (dateString: string) => formatTimeAgoKo(dateString);
 
 const formatDateSimple = (dateString: string) => formatDateYMDKo(dateString);
 
-const getContentText = (content: any): string => {
+const getContentText = (content: unknown): string => {
   if (typeof content === 'string') return content;
-  if (content?.text) return content.text;
+  if (
+    content &&
+    typeof content === 'object' &&
+    'text' in content &&
+    typeof content.text === 'string'
+  ) {
+    return content.text;
+  }
   try {
     return JSON.stringify(content);
   } catch {
@@ -836,14 +844,14 @@ export default function ReplyDetailPage() {
       const assignments =
         questionData.questionDetails?.questionAssignments || [];
 
-      if (assignments.length > 0 && (assignments as any)[0]?.sentAt) {
-        setQuestionSentAt((assignments as any)[0].sentAt);
+      if (assignments.length > 0 && assignments[0]?.sentAt) {
+        setQuestionSentAt(assignments[0].sentAt);
       } else {
         setQuestionSentAt(null);
       }
 
       const answerList = questionData.questionDetails?.answers || [];
-      const convertedAnswers: Answer[] = answerList.map((ans: any) => ({
+      const convertedAnswers: Answer[] = answerList.map((ans) => ({
         ...ans,
         id: ans.answerId,
       }));
@@ -858,9 +866,9 @@ export default function ReplyDetailPage() {
       } catch (error) {
         console.warn('[차단 목록 조회 에러]', error);
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error('[답변 조회 에러]', e);
-      setError(e?.message || '답변을 불러오는데 실패했습니다.');
+      setError(getErrorMessage(e, '답변을 불러오는데 실패했습니다.'));
     } finally {
       if (showLoading) {
         setLoading(false);
@@ -932,7 +940,7 @@ export default function ReplyDetailPage() {
       viewport.removeEventListener('resize', updateKeyboardInset);
       viewport.removeEventListener('scroll', updateKeyboardInset);
     };
-  }, []);
+  }, [isIOS]);
 
   useEffect(() => {
     const input = commentInputRef.current;
@@ -1048,9 +1056,9 @@ export default function ReplyDetailPage() {
       setEditingAnswer(null);
       setEditText('');
       openModal({ content: '답변이 수정되었습니다.' });
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error('[답변 수정 에러]', e);
-      openModal({ content: e?.message || '답변 수정에 실패했습니다.' });
+      openModal({ content: getErrorMessage(e, '답변 수정에 실패했습니다.') });
     }
   };
 
@@ -1102,12 +1110,12 @@ export default function ReplyDetailPage() {
 
       const questionData = await getQuestionInstanceDetails(questionInstanceId);
       const answerList = questionData.questionDetails?.answers || [];
-      const convertedAnswers: Answer[] = answerList.map((ans: any) => ({
+      const convertedAnswers: Answer[] = answerList.map((ans) => ({
         ...ans,
         id: ans.answerId,
       }));
       setAnswers(convertedAnswers);
-    } catch (e: any) {
+    } catch (e: unknown) {
       setAnswers((prev) =>
         prev.map((item) =>
           item.answerId === answer.answerId
@@ -1119,7 +1127,7 @@ export default function ReplyDetailPage() {
         ),
       );
       console.error('[반응 추가 에러]', e);
-      openModal({ content: e?.message || '반응을 남기지 못했습니다.' });
+      openModal({ content: getErrorMessage(e, '반응을 남기지 못했습니다.') });
     } finally {
       setReactionLoadingIds((prev) => {
         const next = new Set(prev);
@@ -1129,8 +1137,10 @@ export default function ReplyDetailPage() {
     }
   };
 
-  const getDisplayName = (memberRole?: string, gender?: string) =>
-    getRoleIconAndText(memberRole as any, gender as any).text;
+  const getDisplayName = (
+    memberRole?: FamilyRole | null,
+    gender?: Member['gender'] | null,
+  ) => getRoleIconAndText(memberRole, gender).text;
 
   const getBlockedLabel = (memberId: string | undefined) => {
     if (!memberId) return '차단';
@@ -1165,9 +1175,9 @@ export default function ReplyDetailPage() {
 
       openModal({ content: '신고가 접수되었습니다.' });
       setPendingReport(null);
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error('[신고 에러]', e);
-      openModal({ content: e?.message || '신고 처리에 실패했습니다.' });
+      openModal({ content: getErrorMessage(e, '신고 처리에 실패했습니다.') });
     }
   };
 
@@ -1217,9 +1227,9 @@ export default function ReplyDetailPage() {
             );
             openModal({ content: '차단했습니다.' });
           }
-        } catch (e: any) {
+        } catch (e: unknown) {
           console.error('[차단 처리 에러]', e);
-          openModal({ content: e?.message || '차단 처리에 실패했습니다.' });
+          openModal({ content: getErrorMessage(e, '차단 처리에 실패했습니다.') });
         }
       },
     });
@@ -1272,9 +1282,9 @@ export default function ReplyDetailPage() {
         }
         scrollToCommentsBottom();
       });
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error('[댓글 생성 에러]', e);
-      openModal({ content: e?.message || '댓글 작성에 실패했습니다.' });
+      openModal({ content: getErrorMessage(e, '댓글 작성에 실패했습니다.') });
     }
   };
 
@@ -1319,9 +1329,9 @@ export default function ReplyDetailPage() {
       setEditingComment(null);
       setEditCommentText('');
       openModal({ content: '댓글이 수정되었습니다.' });
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error('[댓글 수정 에러]', e);
-      openModal({ content: e?.message || '댓글 수정에 실패했습니다.' });
+      openModal({ content: getErrorMessage(e, '댓글 수정에 실패했습니다.') });
     }
   };
 
@@ -1343,9 +1353,9 @@ export default function ReplyDetailPage() {
           setComments(commentList as Comment[]);
 
           openModal({ content: '댓글이 삭제되었습니다.' });
-        } catch (e: any) {
+        } catch (e: unknown) {
           console.error('[댓글 삭제 에러]', e);
-          openModal({ content: e?.message || '댓글 삭제에 실패했습니다.' });
+          openModal({ content: getErrorMessage(e, '댓글 삭제에 실패했습니다.') });
         }
       },
     });
@@ -1725,7 +1735,10 @@ export default function ReplyDetailPage() {
           </div>
         )}
         {pendingReport && (
-          <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-5">
+          <div
+            data-route-modal="true"
+            className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-5"
+          >
             <div className="bg-white rounded-2xl w-full max-w-md p-5 shadow-xl">
               <div className="font-sans text-lg font-bold text-gray-900 mb-1">
                 신고하기
@@ -1848,7 +1861,10 @@ export default function ReplyDetailPage() {
 
       {/* Answer edit modal */}
       {showEditModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-5 z-50">
+        <div
+          data-route-modal="true"
+          className="fixed inset-0 bg-black/40 flex items-center justify-center p-5 z-50"
+        >
           <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-xl">
             <div className="font-sans text-lg font-bold text-gray-900 mb-4">
               답변 수정
@@ -1883,7 +1899,10 @@ export default function ReplyDetailPage() {
 
       {/* Comment edit modal */}
       {showEditCommentModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-5 z-50">
+        <div
+          data-route-modal="true"
+          className="fixed inset-0 bg-black/40 flex items-center justify-center p-5 z-50"
+        >
           <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-xl">
             <div className="font-sans text-lg font-bold text-gray-900 mb-4">
               댓글 수정

@@ -7,6 +7,15 @@ import Skeleton from "@/components/Skeleton";
 const API_BASE =
   (import.meta.env.VITE_API_BASE as string | undefined) || "https://api.onsikku.xyz";
 
+const getErrorMessage = (error: unknown, fallback: string) => {
+  if (error instanceof Error && error.message) return error.message;
+  if (typeof error === "string" && error.trim()) return error;
+  const maybeMessage = (error as { message?: unknown } | null)?.message;
+  return typeof maybeMessage === "string" && maybeMessage.trim()
+    ? maybeMessage
+    : fallback;
+};
+
 export default function KakaoLoginCallback() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -74,7 +83,6 @@ export default function KakaoLoginCallback() {
           false;
 
         if (accessToken) {
-          console.log("🔓 Kakao Access Token:", accessToken);
           await setItem("accessToken", accessToken);
           setAccessToken(accessToken);
         }
@@ -96,9 +104,10 @@ export default function KakaoLoginCallback() {
         } else {
           navigate("/signup/agree", { replace: true });
         }
-      } catch (e: any) {
-        console.error("Kakao Login Error:", e);
-        alert(e?.message || "로그인 처리 중 오류가 발생했습니다.");
+      } catch (e: unknown) {
+        const message = getErrorMessage(e, "로그인 처리 중 오류가 발생했습니다.");
+        console.error("Kakao Login Error:", message);
+        alert(message);
         navigate("/", { replace: true });
       } finally {
         setLoading(false);

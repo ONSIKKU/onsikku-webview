@@ -57,8 +57,7 @@ function mapAppleAuthError(message: string, code?: unknown) {
 function getErrorMessage(err: unknown, fallback: string) {
   if (!err) return fallback;
   if (err instanceof Error && err.message) {
-    const maybeCode = (err as Error & { code?: unknown }).code;
-    return mapAppleAuthError(err.message, maybeCode);
+    return mapAppleAuthError(err.message, getErrorCode(err));
   }
   if (typeof err === 'string' && err.trim()) {
     return mapAppleAuthError(err);
@@ -75,9 +74,26 @@ function getErrorMessage(err: unknown, fallback: string) {
   return fallback;
 }
 
+function getErrorCode(err: unknown) {
+  return (err as { code?: unknown } | null)?.code;
+}
+
+function getRawErrorMessage(err: unknown) {
+  if (err instanceof Error) return err.message;
+  if (typeof err === 'string') return err;
+  const maybeMessage = (err as { message?: unknown } | null)?.message;
+  return typeof maybeMessage === 'string' ? maybeMessage : '';
+}
+
 function toBodyPreview(text: string, maxLength = 400) {
   if (!text) return '';
-  const compact = text.replace(/\s+/g, ' ').trim();
+  const compact = text
+    .replace(
+      /"(accessToken|refreshToken|registrationToken|identityToken)"\s*:\s*"[^"]*"/g,
+      '"$1":"[redacted]"',
+    )
+    .replace(/\s+/g, ' ')
+    .trim();
   if (compact.length <= maxLength) return compact;
   return `${compact.slice(0, maxLength)}...`;
 }
@@ -88,11 +104,14 @@ type AppleNativePayload = {
   user?: string;
 };
 
+type AppleAuthorizeResult = Partial<AppleNativePayload & { email?: string }> & {
+  response?: Partial<AppleNativePayload & { email?: string }>;
+};
+
 async function requestAppleLogin(nativePayload: AppleNativePayload) {
   if (AUTH_DEBUG) {
     console.log('[AppleDebug] /api/auth/apple request', {
       hasIdentityToken: !!nativePayload.identityToken,
-      identityTokenPrefix: nativePayload.identityToken?.slice(0, 16),
       hasAuthorizationCode: !!nativePayload.authorizationCode,
       hasUser: !!nativePayload.user,
     });
@@ -252,7 +271,8 @@ export default function AppleLoginStart() {
         }
 
         // plugin 반환 형태가 버전에 따라 다를 수 있어 방어적으로 처리
-        const response: any = (result as any)?.response ?? result;
+        const appleResult = result as AppleAuthorizeResult;
+        const response = appleResult.response ?? appleResult;
 
         identityToken = response?.identityToken ?? '';
         authorizationCode = response?.authorizationCode ?? '';
@@ -270,17 +290,15 @@ export default function AppleLoginStart() {
           });
         }
       } catch (e) {
-        console.warn('[AppleLogin] native authorize failed:', e);
+        const nativeErrorMessage = getRawErrorMessage(e);
+        const nativeErrorCode = getErrorCode(e);
+        console.warn('[AppleLogin] native authorize failed:', nativeErrorMessage);
         if (AUTH_DEBUG) {
           console.log('[AppleDebug] native authorize failed detail', {
-            message: (e as any)?.message,
-            code: (e as any)?.code,
+            message: nativeErrorMessage,
+            code: nativeErrorCode,
           });
         }
-
-        const nativeErrorMessage =
-          typeof (e as any)?.message === 'string' ? (e as any).message : '';
-        const nativeErrorCode = (e as any)?.code;
 
         if (isAppleAuthCancelled(nativeErrorMessage, nativeErrorCode)) {
           if (isMounted) setIsCancelled(true);
@@ -328,7 +346,6 @@ export default function AppleLoginStart() {
           await setItem('registrationToken', registrationToken);
         }
         if (accessToken) {
-          console.log('🔓 Apple Access Token:', accessToken);
           setAccessToken(accessToken);
           await setItem('accessToken', accessToken);
         }
@@ -354,7 +371,7 @@ export default function AppleLoginStart() {
         if (AUTH_DEBUG) {
           console.log('[AppleDebug] backend exchange failed detail', {
             message: errorMessage,
-            code: (e as any)?.code,
+            code: getErrorCode(e),
           });
         }
         alert(errorMessage);

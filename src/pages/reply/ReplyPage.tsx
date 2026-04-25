@@ -9,6 +9,18 @@ import {
 
 const MAX_LEN = 500;
 
+const getErrorMessage = (error: unknown, fallback: string) => {
+  if (error instanceof Error && error.message) return error.message;
+  if (typeof error === 'string' && error.trim()) return error;
+  const maybeMessage = (error as { message?: unknown } | null)?.message;
+  return typeof maybeMessage === 'string' && maybeMessage.trim()
+    ? maybeMessage
+    : fallback;
+};
+
+const isAuthLikeError = (message: string) =>
+  /401|403|로그인|인증|세션|토큰/.test(message);
+
 function ArrowBackIcon({ size = 24 }: { size?: number }) {
   return (
     <svg
@@ -131,6 +143,8 @@ export default function ReplyPage() {
   }, [reply]);
 
   const handleSubmit = async () => {
+    if (submitting) return;
+
     try {
       if (!questionAssignmentId) {
         alert('질문 할당 정보가 없습니다.');
@@ -158,11 +172,13 @@ export default function ReplyPage() {
 
       alert('답변이 등록되었습니다.');
       navigate(-1);
-    } catch (e: any) {
-      console.error('[답변 등록 에러]', e);
-      alert(e?.message || '답변 등록에 실패했습니다.');
-      // RN 코드처럼 403/401 느낌이면 마이페이지로 유도
-      navigate('/mypage', { replace: true });
+    } catch (e: unknown) {
+      const message = getErrorMessage(e, '답변 등록에 실패했습니다.');
+      console.error('[답변 등록 에러]', message);
+      alert(message);
+      if (isAuthLikeError(message)) {
+        navigate('/mypage', { replace: true });
+      }
     } finally {
       setSubmitting(false);
     }

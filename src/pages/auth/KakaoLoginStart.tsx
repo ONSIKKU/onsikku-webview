@@ -13,7 +13,6 @@ const KAKAO_REST_API_KEY = import.meta.env.VITE_KAKAO_REST_API_KEY as
 const KAKAO_REDIRECT_URI_APP = import.meta.env.VITE_KAKAO_REDIRECT_URI_APP as
   | string
   | undefined;
-console.log(KAKAO_REDIRECT_URI_APP);
 
 export default function KakaoLoginStart() {
   const [browserClosed, setBrowserClosed] = useState(false);

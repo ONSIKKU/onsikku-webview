@@ -1,4 +1,4 @@
-import { IoTrashOutline } from 'react-icons/io5';
+import { IoChevronForwardOutline } from 'react-icons/io5';
 import iconTodayTargetMember from '@/assets/icons/notifications/TODAY_TARGET_MEMBER.svg';
 import iconTodayTargetAnnounced from '@/assets/icons/notifications/TODAY_TARGET_MEMBER_ANNOUNCED.svg';
 import iconAnswerAdded from '@/assets/icons/notifications/ANSWER_ADDED.svg';
@@ -21,89 +21,82 @@ export interface Notification {
     | 'target_announced'
     | 'knock_knock'
     | 'member_joined'
-    | 'weekly_report'
-    | 'system_notice';
-  actor: string;
-  actorAvatar: string;
+  | 'weekly_report'
+  | 'system_notice';
   title?: string;
   body?: string;
-  message: string;
   time: string;
+  publishedAt: string;
   isRead: boolean;
   relatedEntityId?: string;
 }
 
 const typeDetails: Record<
   Notification['type'],
-  { title: string; icon: string }
+  { icon: string; tone: string }
 > = {
-  comment: { title: '새로운 댓글', icon: iconCommentAdded },
-  reaction: { title: '새로운 반응', icon: iconReactionAdded },
-  answer: { title: '새로운 답변', icon: iconAnswerAdded },
-  all_answered: { title: '모든 답변 완료', icon: iconAllAnswered },
-  new_question: { title: '새로운 질문', icon: iconTodayTargetMember },
-  target_announced: { title: '오늘의 주인공 발표', icon: iconTodayTargetAnnounced },
-  knock_knock: { title: '똑똑, 기다리고 있어요', icon: iconKnockKnock },
-  member_joined: { title: '새 식구 합류', icon: iconMemberJoined },
-  weekly_report: { title: '주간 리포트', icon: iconWeeklyReport },
-  system_notice: { title: '온식구 공지', icon: iconSystemNotice },
+  comment: { icon: iconCommentAdded, tone: 'bg-emerald-50' },
+  reaction: { icon: iconReactionAdded, tone: 'bg-rose-50' },
+  answer: { icon: iconAnswerAdded, tone: 'bg-sky-50' },
+  all_answered: { icon: iconAllAnswered, tone: 'bg-violet-50' },
+  new_question: { icon: iconTodayTargetMember, tone: 'bg-orange-50' },
+  target_announced: { icon: iconTodayTargetAnnounced, tone: 'bg-orange-50' },
+  knock_knock: { icon: iconKnockKnock, tone: 'bg-amber-50' },
+  member_joined: { icon: iconMemberJoined, tone: 'bg-lime-50' },
+  weekly_report: { icon: iconWeeklyReport, tone: 'bg-indigo-50' },
+  system_notice: { icon: iconSystemNotice, tone: 'bg-gray-100' },
 };
 
 export default function NotificationCard({
   item,
   onClick,
-  onDelete,
 }: {
   item: Notification;
   onClick: (item: Notification) => void;
-  onDelete: (id: string) => void;
 }) {
   const details = typeDetails[item.type];
-  const displayTitle = item.title?.trim() || details.title;
-  const displayBody = item.body?.trim() || item.message;
-  const showActor = Boolean(item.actor?.trim()) && item.actor !== '알림';
-
-  const borderColor = item.isRead
-    ? 'border-transparent'
-    : item.type === 'comment'
-      ? 'border-green-300'
-      : 'border-red-300';
+  const displayTitle = item.title?.trim() || '알림 제목을 불러오지 못했습니다.';
+  const displayBody = item.body?.trim() || '알림 내용을 불러오지 못했습니다.';
 
   return (
-    <div
+    <button
+      type="button"
       onClick={() => onClick(item)}
-      className={`w-full p-4 rounded-2xl shadow-sm bg-white border cursor-pointer active:opacity-90 transition-all ${borderColor}`}
+      className={`w-full rounded-[18px] bg-white px-4 py-3.5 text-left shadow-sm ring-1 transition active:bg-orange-50/50 ${
+        item.isRead ? 'ring-gray-100' : 'ring-orange-100 bg-orange-50/30'
+      }`}
     >
-      <div className="flex flex-row justify-between items-start">
-        <div className="flex flex-row items-center flex-1">
-          <div className="w-8 h-8 rounded-full bg-orange-50 flex items-center justify-center">
-            <img src={details.icon} alt={displayTitle} className="w-5 h-5" />
-          </div>
-          <div className="text-base font-bold text-gray-800 ml-3">
-            {displayTitle}
-          </div>
-          {!item.isRead && (
-            <div className="w-2 h-2 bg-red-500 rounded-full ml-2" />
-          )}
+      <div className="flex items-start gap-3">
+        <div className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${details.tone}`}>
+          <img src={details.icon} alt="" aria-hidden="true" className="h-5 w-5" />
         </div>
 
-        <button
-          type="button"
-          className="active:opacity-70 p-1"
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete(item.id);
-          }}
-        >
-          <IoTrashOutline size={20} color="gray" />
-        </button>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start gap-2">
+            {!item.isRead && (
+              <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-onsikku-dark-orange" />
+            )}
+            <div className="min-w-0 flex-1">
+              <div
+                className={`text-[15px] leading-5 ${
+                  item.isRead
+                    ? 'font-semibold text-gray-800'
+                    : 'font-bold text-gray-950'
+                }`}
+              >
+                {displayTitle}
+              </div>
+              <p className="mt-0.5 text-sm leading-5 text-gray-600">
+                {displayBody}
+              </p>
+            </div>
+            <span className="mt-0.5 shrink-0 text-xs font-medium text-gray-400">
+              {item.time}
+            </span>
+          </div>
+        </div>
+        <IoChevronForwardOutline className="mt-2 shrink-0 text-gray-300" size={16} />
       </div>
-
-      <div className="mt-2 ml-10">
-        {showActor && <div className="text-sm text-gray-500 mb-1">{item.actor}</div>}
-        <div className="text-base text-gray-700">{displayBody}</div>
-        <div className="text-sm text-gray-400 mt-1.5">{item.time}</div>
-      </div>
-    </div>
+    </button>
   );
 }

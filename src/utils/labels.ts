@@ -64,6 +64,8 @@ export const getRoleIconAndText = (
   role?: FamilyRole | null,
   _gender?: string | null,
 ): { icon: string; text: string; color: string } => {
+  void _gender;
+
   if (!role) {
     return { icon: '👤', text: '-', color: '#D1D5DB' };
   }
