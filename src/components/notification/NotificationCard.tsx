@@ -74,7 +74,7 @@ export default function NotificationCard({
             src={details.icon}
             alt=""
             aria-hidden="true"
-            className="h-5 w-5"
+            className="h-6 w-6 object-contain"
           />
         </div>
 
