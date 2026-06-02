@@ -3,7 +3,9 @@ import {
   Navigate,
   Route,
   Routes,
+  useLocation,
   useNavigate,
+  useNavigationType,
 } from 'react-router-dom';
 import LandingPage from '@/pages/LandingPage';
 import KakaoLoginStart from '@/pages/auth/KakaoLoginStart';
@@ -33,7 +35,8 @@ import ReplyPage from '@/pages/reply/ReplyPage';
 import ReplyDetailPage from '@/pages/reply/ReplyDetailPage';
 
 import DeepLinkBridge from '@/routes/DeepLinkBridge';
-import IOSSwipeBackGuard from '@/routes/IOSSwipeBackGuard';
+import NativeBackNavigation from '@/routes/NativeBackNavigation';
+import { isStackRoute } from '@/routes/navigationRoutes';
 import AppSplash from '@/components/AppSplash';
 import { Capacitor } from '@capacitor/core';
 import { Keyboard } from '@capacitor/keyboard';
@@ -58,28 +61,26 @@ function SessionBridge() {
   return null;
 }
 
-export default function App() {
-  const [showSplash, setShowSplash] = useState(true);
-
-  useEffect(() => {
-    if (Capacitor.getPlatform() !== 'ios') return;
-
-    Keyboard.setAccessoryBarVisible({ isVisible: false }).catch((error) => {
-      console.warn('[Keyboard] accessory bar 설정 실패', error);
-    });
-  }, []);
+function AppRoutes() {
+  const location = useLocation();
+  const navigationType = useNavigationType();
+  const isIOS = Capacitor.getPlatform() === 'ios';
+  const shouldAnimate =
+    isIOS &&
+    (navigationType === 'POP' || isStackRoute(location.pathname)) &&
+    navigationType !== 'REPLACE';
+  const routeAnimationClass = shouldAnimate
+    ? navigationType === 'POP'
+      ? 'ios-route-pop'
+      : 'ios-route-push'
+    : '';
 
   return (
-    <BrowserRouter>
-      <GlobalModal />
-
-      {showSplash && <AppSplash onDone={() => setShowSplash(false)} />}
-
-      <DeepLinkBridge />
-      <IOSSwipeBackGuard />
-      <SessionBridge />
-
-      <Routes>
+    <div
+      key={location.key}
+      className={`ios-route-scene ${routeAnimationClass}`}
+    >
+      <Routes location={location}>
         <Route path="/" element={<LandingPage />} />
         <Route path="/auth/kakao" element={<KakaoLoginStart />} />
         <Route path="/auth/apple" element={<AppleLoginStart />} />
@@ -109,6 +110,32 @@ export default function App() {
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+    </div>
+  );
+}
+
+export default function App() {
+  const [showSplash, setShowSplash] = useState(true);
+
+  useEffect(() => {
+    if (Capacitor.getPlatform() !== 'ios') return;
+
+    Keyboard.setAccessoryBarVisible({ isVisible: false }).catch((error) => {
+      console.warn('[Keyboard] accessory bar 설정 실패', error);
+    });
+  }, []);
+
+  return (
+    <BrowserRouter>
+      <GlobalModal />
+
+      {showSplash && <AppSplash onDone={() => setShowSplash(false)} />}
+
+      <DeepLinkBridge />
+      <NativeBackNavigation />
+      <SessionBridge />
+
+      <AppRoutes />
     </BrowserRouter>
   );
 }

@@ -66,9 +66,9 @@ export default function NotificationCard({
         item.isRead ? "ring-gray-100" : "ring-orange-100 bg-orange-50/30"
       }`}
     >
-      <div className="flex items-start gap-3">
+      <div className="flex items-center gap-3">
         <div
-          className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${details.tone}`}
+          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${details.tone}`}
         >
           <img
             src={details.icon}
@@ -103,7 +103,7 @@ export default function NotificationCard({
           </div>
         </div>
         <IoChevronForwardOutline
-          className="mt-2 shrink-0 text-gray-300"
+          className="shrink-0 text-gray-300"
           size={16}
         />
       </div>

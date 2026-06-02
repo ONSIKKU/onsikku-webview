@@ -13,6 +13,50 @@ html, body, #root {
 
 body {
   margin: 0;
+  overscroll-behavior-x: none;
+  background: #fff5e9;
+}
+
+.ios-route-scene {
+  min-height: 100%;
+  background: #fff5e9;
+}
+
+.ios-route-push {
+  animation: ios-route-push-in 280ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.ios-route-pop {
+  animation: ios-route-pop-in 280ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes ios-route-push-in {
+  from {
+    opacity: 0.98;
+    transform: translate3d(18%, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes ios-route-pop-in {
+  from {
+    opacity: 0.98;
+    transform: translate3d(-18%, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ios-route-push,
+  .ios-route-pop {
+    animation: none;
+  }
 }
 
 @keyframes skeleton-breathe {
