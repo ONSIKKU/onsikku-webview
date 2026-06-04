@@ -1,6 +1,7 @@
 import NotificationCard from './NotificationCard';
 import type { Notification } from './NotificationCard';
 import Skeleton from '@/components/Skeleton';
+import { IoNotificationsOutline } from 'react-icons/io5';
 
 interface NotificationListProps {
   notifications: Notification[];
@@ -90,8 +91,16 @@ export default function NotificationList({
 
   if (notifications.length === 0) {
     return (
-      <div className="py-10 text-center text-gray-500 text-base">
-        새로운 알림이 없습니다.
+      <div className="flex flex-col items-center justify-center rounded-[18px] bg-white px-6 py-12 text-center shadow-sm ring-1 ring-gray-100">
+        <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-orange-50 text-onsikku-dark-orange">
+          <IoNotificationsOutline size={24} aria-hidden="true" />
+        </div>
+        <p className="text-base font-semibold text-gray-800">
+          새로운 알림이 없습니다.
+        </p>
+        <p className="mt-1 text-sm leading-5 text-gray-500">
+          가족의 새 소식이 도착하면 이곳에서 알려드릴게요.
+        </p>
       </div>
     );
   }

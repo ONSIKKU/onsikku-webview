@@ -62,7 +62,7 @@ export default function NotificationCard({
     <button
       type="button"
       onClick={() => onClick(item)}
-      className={`w-full rounded-[18px] bg-white px-4 py-3.5 text-left shadow-sm ring-1 transition active:bg-orange-50/50 ${
+      className={`w-full rounded-[18px] bg-white px-4 py-3.5 text-left shadow-sm ring-1 transition duration-150 active:scale-[0.99] active:bg-orange-50/50 ${
         item.isRead ? "ring-gray-100" : "ring-orange-100 bg-orange-50/30"
       }`}
     >
