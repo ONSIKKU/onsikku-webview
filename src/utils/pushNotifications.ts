@@ -11,6 +11,7 @@ import { deletePushToken, setAccessToken, upsertPushToken } from '@/utils/api';
 
 const PUSH_TOKEN_STORAGE_KEY = 'pushToken';
 const ANDROID_DEFAULT_CHANNEL_ID = 'onsikku_default';
+const PUSH_DEBUG = (import.meta.env.VITE_PUSH_DEBUG as string | undefined) === 'true';
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -29,12 +30,14 @@ type SyncPushTokenParams = {
 const syncPushToken = async ({ token, platform, fcmToken }: SyncPushTokenParams) => {
   const prev = await getItem(PUSH_TOKEN_STORAGE_KEY);
 
-  console.log('[Push][Sync] token candidate', {
-    platform,
-    hasFcmToken: Boolean(fcmToken),
-    changed: prev !== token,
-    tokenPreview: maskToken(token),
-  });
+  if (PUSH_DEBUG) {
+    console.log('[Push][Sync] token candidate', {
+      platform,
+      hasFcmToken: Boolean(fcmToken),
+      changed: prev !== token,
+      tokenPreview: maskToken(token),
+    });
+  }
 
   const accessToken = await getItem('accessToken');
   if (accessToken) {
@@ -131,10 +134,12 @@ export async function initPushNotifications(options: InitPushOptions = {}) {
     }
 
     await FirebaseMessaging.addListener('tokenReceived', async ({ token }) => {
-      console.log('[Push] FCM token received', {
-        hasToken: Boolean(token),
-        tokenPreview: maskToken(token),
-      });
+      if (PUSH_DEBUG) {
+        console.log('[Push] FCM token received', {
+          hasToken: Boolean(token),
+          tokenPreview: maskToken(token),
+        });
+      }
 
       try {
         await syncPushToken({
@@ -148,27 +153,33 @@ export async function initPushNotifications(options: InitPushOptions = {}) {
     });
 
     await FirebaseMessaging.addListener('notificationReceived', (event) => {
-      console.log('[Push] FCM notification received', {
-        id: event.notification?.id,
-        hasData: Boolean(event.notification?.data),
-      });
+      if (PUSH_DEBUG) {
+        console.log('[Push] FCM notification received', {
+          id: event.notification?.id,
+          hasData: Boolean(event.notification?.data),
+        });
+      }
       activeHandlers.onReceived?.(event.notification as unknown as PushNotificationSchema);
     });
 
     await FirebaseMessaging.addListener('notificationActionPerformed', (event) => {
-      console.log('[Push] FCM notification action performed', {
-        actionId: event.actionId,
-        hasData: Boolean(event.notification?.data),
-      });
+      if (PUSH_DEBUG) {
+        console.log('[Push] FCM notification action performed', {
+          actionId: event.actionId,
+          hasData: Boolean(event.notification?.data),
+        });
+      }
       activeHandlers.onActionPerformed?.(event as unknown as ActionPerformed);
     });
 
     // 1) 토큰 등록 리스너
     await PushNotifications.addListener('registration', async (token: Token) => {
-      console.log('[Push] registration token received', {
-        hasToken: Boolean(token.value),
-        tokenPreview: maskToken(token.value),
-      });
+      if (PUSH_DEBUG) {
+        console.log('[Push] registration token received', {
+          hasToken: Boolean(token.value),
+          tokenPreview: maskToken(token.value),
+        });
+      }
 
       try {
         const platform = Capacitor.getPlatform();
@@ -200,19 +211,23 @@ export async function initPushNotifications(options: InitPushOptions = {}) {
 
     // 3) 포그라운드 수신 리스너
     await PushNotifications.addListener('pushNotificationReceived', (notification) => {
-      console.log('[Push] received', {
-        id: notification.id,
-        hasData: Boolean(notification.data),
-      });
+      if (PUSH_DEBUG) {
+        console.log('[Push] received', {
+          id: notification.id,
+          hasData: Boolean(notification.data),
+        });
+      }
       activeHandlers.onReceived?.(notification);
     });
 
     // 4) 푸시 클릭/액션 리스너
     await PushNotifications.addListener('pushNotificationActionPerformed', (event) => {
-      console.log('[Push] action performed', {
-        actionId: event.actionId,
-        hasData: Boolean(event.notification?.data),
-      });
+      if (PUSH_DEBUG) {
+        console.log('[Push] action performed', {
+          actionId: event.actionId,
+          hasData: Boolean(event.notification?.data),
+        });
+      }
       activeHandlers.onActionPerformed?.(event);
     });
   }
@@ -248,7 +263,9 @@ export async function ensurePushPermissionAndRegister(confirmBeforeRequest = tru
   }
 
   await PushNotifications.register();
-  console.log('[Push] register() called');
+  if (PUSH_DEBUG) {
+    console.log('[Push] register() called');
+  }
 
   try {
     const { token } = await FirebaseMessaging.getToken();

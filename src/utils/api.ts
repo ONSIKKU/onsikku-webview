@@ -4,6 +4,7 @@ export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
 const DEFAULT_BASE_URL =
   (import.meta.env.VITE_API_BASE as string | undefined) || "https://api.onsikku.xyz";
+const PUSH_DEBUG = (import.meta.env.VITE_PUSH_DEBUG as string | undefined) === "true";
 
 let baseUrl = DEFAULT_BASE_URL;
 
@@ -77,28 +78,32 @@ const callPushTokenEndpoint = async <T>(
   let lastError: unknown;
   const paths = resolvePushTokenPaths();
 
-  if (body) {
-    try {
-      const parsed = JSON.parse(body) as { platform?: string; deviceType?: string; fcmToken?: string; token?: string };
-      console.log('[Push][API] request', {
-        method,
-        paths,
-        platform: parsed.platform,
-        deviceType: parsed.deviceType,
-        hasFcmToken: Boolean(parsed.fcmToken),
-        tokenPreview: maskToken(parsed.fcmToken || parsed.token),
-      });
-    } catch {
-      console.log('[Push][API] request', { method, paths, bodySize: body.length });
+  if (PUSH_DEBUG) {
+    if (body) {
+      try {
+        const parsed = JSON.parse(body) as { platform?: string; deviceType?: string; fcmToken?: string; token?: string };
+        console.log('[Push][API] request', {
+          method,
+          paths,
+          platform: parsed.platform,
+          deviceType: parsed.deviceType,
+          hasFcmToken: Boolean(parsed.fcmToken),
+          tokenPreview: maskToken(parsed.fcmToken || parsed.token),
+        });
+      } catch {
+        console.log('[Push][API] request', { method, paths, bodySize: body.length });
+      }
+    } else {
+      console.log('[Push][API] request', { method, paths, bodySize: 0 });
     }
-  } else {
-    console.log('[Push][API] request', { method, paths, bodySize: 0 });
   }
 
   for (const path of paths) {
     try {
       const result = await apiFetch<T>(path, { method, ...(body ? { body } : {}) });
-      console.log('[Push][API] success', { method, path });
+      if (PUSH_DEBUG) {
+        console.log('[Push][API] success', { method, path });
+      }
       return result;
     } catch (error) {
       console.warn('[Push][API] failed', { method, path, error });
